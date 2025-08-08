@@ -63,21 +63,6 @@ repos:
           - --disable=po-pretty-format
   - repo: local
     hooks:
-      - id: prettier
-        name: prettier (with plugin-xml)
-        entry: prettier
-        args:
-          - --write
-          - --list-different
-          - --ignore-unknown
-        types: [text]
-        files: \.(css|htm|html|js|json|jsx|less|md|scss|toml|ts|xml|yaml|yml)$
-        language: node
-        additional_dependencies:
-          - "prettier@2.7.1"
-          - "@prettier/plugin-xml@2.2.0"
-  - repo: local
-    hooks:
       - id: eslint
         name: eslint
         entry: eslint
@@ -128,7 +113,6 @@ repos:
     hooks:
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]
-      - id: ruff-format
   - repo: https://github.com/OCA/pylint-odoo
     rev: v8.0.19
     hooks:
