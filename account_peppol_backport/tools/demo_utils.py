@@ -1,16 +1,16 @@
-# -*- coding: utf-8 -*-
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 
-from base64 import b64encode
-from decorator import decorator
 import uuid
+from base64 import b64encode
+
+from decorator import decorator
 
 from odoo import _, fields, modules, tools
 from odoo.tools.misc import file_open
 
-DEMO_BILL_PATH = 'account_peppol/tools/demo_bill'
-DEMO_ENC_KEY = 'account_peppol/tools/enc_key'
-DEMO_PRIVATE_KEY = 'account_peppol/tools/private_key.pem'
+DEMO_BILL_PATH = 'account_peppol_backport/tools/demo_bill'
+DEMO_ENC_KEY = 'account_peppol_backport/tools/enc_key'
+DEMO_PRIVATE_KEY = 'account_peppol_backport/tools/private_key.pem'
 
 # -------------------------------------------------------------------------
 # HELPERS
@@ -50,7 +50,7 @@ def _mock_make_request(func, self, *args, **kwargs):
     def _mock_send_document(user, args, kwargs):
         # Trigger the reception of vendor bills
         get_messages_cron = user.env['ir.cron'].sudo().env.ref(
-            'account_peppol.ir_cron_peppol_get_new_documents',
+            'account_peppol_backport.ir_cron_peppol_get_new_documents',
             raise_if_not_found=False,
         )
         if get_messages_cron:
@@ -96,7 +96,7 @@ def _mock_deregister_participant(func, self, *args, **kwargs):
         'peppol_move_state': None,
     })
     demo_moves.message_main_attachment_id.unlink()
-    demo_moves.ubl_cii_xml_id.unlink()
+    # demo_moves.ubl_cii_xml_id.unlink() # XXX PEPPOL BACKPORT
     log_message = _('The peppol status of the documents has been reset when switching from Demo to Live.')
     demo_moves._message_log_batch(bodies=dict((move.id, log_message) for move in demo_moves))
 

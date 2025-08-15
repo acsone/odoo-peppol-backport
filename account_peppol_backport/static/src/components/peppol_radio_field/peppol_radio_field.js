@@ -1,17 +1,11 @@
 /** @odoo-module **/
 
+/* eslint-disable sort-imports */
 import { evaluateExpr } from "@web/core/py_js/py";
 import { RadioField, radioField } from "@web/views/fields/radio/radio_field";
 import { registry } from "@web/core/registry";
 
 class PeppolRadioField extends RadioField {
-    static template = "account_peppol.PeppolRadioField";
-    static props = {
-        ...RadioField.props,
-        hiddenItems: { type: String, optional: true },
-        readonlyItems: { type: String, optional: true },
-    };
-
     setup() {
         super.setup()
         this.initialSelection = this.props.record.data[this.props.name];
@@ -24,6 +18,13 @@ class PeppolRadioField extends RadioField {
     }
 }
 
+PeppolRadioField.template = "account_peppol_regitration.PeppolRadioField";
+PeppolRadioField.props = {
+    ...RadioField.props,
+    hiddenItems: { type: String, optional: true },
+    readonlyItems: { type: String, optional: true },
+};
+
 const peppolRadioField = {
     ...radioField,
     component: PeppolRadioField,
@@ -35,4 +36,5 @@ const peppolRadioField = {
         }
     },
 }
+
 registry.category("fields").add("account_peppol_radio_field", peppolRadioField);

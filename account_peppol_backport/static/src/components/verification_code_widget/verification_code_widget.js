@@ -1,15 +1,12 @@
 /** @odoo-module **/
 
+/* eslint-disable sort-imports */
 import { registry } from "@web/core/registry";
 import { standardFieldProps } from "@web/views/fields/standard_field_props";
 
 import { Component, onMounted, useRef } from "@odoo/owl";
 
 class VerificationCodeWidget extends Component {
-    static props = {
-        ...standardFieldProps,
-    };
-    static template = "account_peppol.VerificationCodeWidget";
 
     setup() {
         super.setup();
@@ -19,7 +16,7 @@ class VerificationCodeWidget extends Component {
         }
 
         /*
-        if the verification code was previously filled in and the user saved the page,
+        If the verification code was previously filled in and the user saved the page,
         pre-fill the input fields with the stored value.
         */
         onMounted(async () => {
@@ -31,7 +28,7 @@ class VerificationCodeWidget extends Component {
     }
 
     /*
-    overrides the default paste behaviour, so that if a value is pasted
+    Overrides the default paste behaviour, so that if a value is pasted
     into one of the verification code fields, it's split between the input fields,
     so they can easily copy and paste the code they received via SMS.
     */
@@ -41,14 +38,14 @@ class VerificationCodeWidget extends Component {
         }
         ev.preventDefault();
 
-        let pastedData = ev.clipboardData.getData('text').split('');
-        let target = ev.target;
+        const pastedData = ev.clipboardData.getData('text').split('');
+        const target = ev.target;
         for (let i = target.id; i < this.inputs.length; i++) {
             this.inputs[i].el.value = pastedData.shift() || null;
         }
     }
 
-    // switch focus to the next input box once they enter
+    // Switch focus to the next input box once they enter
     // one digit and switch focus to the previous input box
     // if they press backspace
     onKeyUp(ev) {
@@ -60,14 +57,16 @@ class VerificationCodeWidget extends Component {
     }
 
     _save() {
-        let verificationCode = [...this.inputs.map((i) => i.el.value)].join('');
+        const verificationCode = [...this.inputs.map((i) => i.el.value)].join('');
         if (verificationCode.length === 6) {
             this.props.record.update({ account_peppol_verification_code: verificationCode });
         }
     }
 }
 
-registry.category("fields").add("verification_code", {
-    component: VerificationCodeWidget,
-    supportedTypes: ["char"],
-});
+VerificationCodeWidget.template = "account_peppol_backport.VerificationCodeWidget";
+VerificationCodeWidget.props = {
+    ...standardFieldProps,
+};
+VerificationCodeWidget.supportedTypes = ["char"];
+registry.category("fields").add("verification_code", VerificationCodeWidget);

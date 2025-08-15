@@ -1,5 +1,6 @@
 /** @odoo-module **/
 
+/* eslint-disable sort-imports */
 import { _t } from "@web/core/l10n/translation";
 import { escape } from "@web/core/utils/strings";
 import { registry } from "@web/core/registry";
@@ -13,11 +14,6 @@ import { Component, markup, useState } from "@odoo/owl";
 const waitTime = 60000;
 
 class PeppolSettingsButtons extends Component {
-    static props = {
-        ...standardWidgetProps,
-    };
-    static template = "account_peppol.ActionButtons";
-
     setup() {
         super.setup();
         this.dialogService = useService("dialog");
@@ -89,7 +85,7 @@ class PeppolSettingsButtons extends Component {
             confirm: async () => {
                 await this._callConfigMethod(methodName);
             },
-            cancel: () => { },
+            cancel: () => { }, // eslint-disable-line
         });
     }
 
@@ -105,7 +101,7 @@ class PeppolSettingsButtons extends Component {
     }
 
     async updateDetails() {
-        // avoid making users click save on the settings
+        // Avoid making users click save on the settings
         // and then clicking the update button
         // changes on both the client side and the iap side need to be saved within one method
         await this._callConfigMethod("button_update_peppol_user_data", true);
@@ -116,15 +112,15 @@ class PeppolSettingsButtons extends Component {
     }
 
     async checkCode() {
-        // avoid making users click save on the settings
+        // Avoid making users click save on the settings
         // and then clicking the confirm button to check the code
         await this._callConfigMethod("button_check_peppol_verification_code", true);
     }
 
     async sendCode() {
         this.state.isSmsButtonDisabled = true;
-        // don't allow spamming the button
-        setTimeout(() => this.state.isSmsButtonDisabled = false, waitTime);
+        // Don't allow spamming the button
+        setTimeout(() => this.state.isSmsButtonDisabled = false, waitTime); // eslint-disable-line
         await this._callConfigMethod("button_send_peppol_verification_code", true);
     }
 
@@ -133,6 +129,8 @@ class PeppolSettingsButtons extends Component {
     }
 }
 
-registry.category("view_widgets").add("peppol_settings_buttons", {
-    component: PeppolSettingsButtons,
-});
+PeppolSettingsButtons.template = "account_peppol_backport.ActionButtons";
+PeppolSettingsButtons.props = {
+    ...standardWidgetProps,
+};
+registry.category("view_widgets").add("peppol_settings_buttons", PeppolSettingsButtons);
