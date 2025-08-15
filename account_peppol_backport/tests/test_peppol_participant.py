@@ -1,12 +1,15 @@
 import json
 from contextlib import contextmanager
-from freezegun import freeze_time
-from requests import Session, PreparedRequest, Response
-from psycopg2 import IntegrityError
 
-from odoo.exceptions import ValidationError, UserError
-from odoo.tests.common import tagged, TransactionCase
+from freezegun import freeze_time
+from psycopg2 import IntegrityError
+from requests import PreparedRequest, Response, Session
+
+from odoo.exceptions import UserError, ValidationError
+from odoo.tests.common import tagged
 from odoo.tools import mute_logger
+
+from .utils import RequestHandlerTransactionCase
 
 ID_CLIENT = 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'
 FAKE_UUID = 'yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy'
@@ -14,7 +17,7 @@ PDF_FILE_PATH = 'account_peppol/tests/assets/peppol_identification_test.pdf'
 
 @freeze_time('2023-01-01')
 @tagged('-at_install', 'post_install')
-class TestPeppolParticipant(TransactionCase):
+class TestPeppolParticipant(RequestHandlerTransactionCase):
 
     @classmethod
     def setUpClass(cls):
@@ -66,7 +69,7 @@ class TestPeppolParticipant(TransactionCase):
             and cls.env.context.get('migrate_to')
             and not body['params']['migration_key']
         ):
-            raise UserError('No migration key was provided')
+            raise UserError('No migration key was provided')  # pylint: disable=translation-required
 
         if cls.env.context.get('migrated_away'):
             response.json = lambda: {
@@ -130,7 +133,7 @@ class TestPeppolParticipant(TransactionCase):
         settings.account_peppol_verification_code = '123456'
         settings.button_check_peppol_verification_code()
         self.assertEqual(company.account_peppol_proxy_state, 'pending')
-        self.env['account_edi_proxy_client.user']._cron_peppol_get_participant_status()
+        self.env['account_edi_proxy_client_peppol.user']._cron_peppol_get_participant_status()
         self.assertEqual(company.account_peppol_proxy_state, 'active')
 
     def test_create_reject_participant(self):
@@ -142,7 +145,7 @@ class TestPeppolParticipant(TransactionCase):
         with self._set_context({'reject': True}):
             settings.button_create_peppol_proxy_user()
             company.account_peppol_proxy_state = 'pending'
-            self.env['account_edi_proxy_client.user']._cron_peppol_get_participant_status()
+            self.env['account_edi_proxy_client_peppol.user']._cron_peppol_get_participant_status()
             self.assertEqual(company.account_peppol_proxy_state, 'rejected')
 
     @mute_logger('odoo.sql_db')

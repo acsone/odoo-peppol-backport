@@ -1,0 +1,15 @@
+This is a backport of the `account_peppol` addon of Odoo 17: 
+- the registration/unregistration logic and UI;
+- the logic to determine if a partner is registered on the Peppol network and
+  the supported formats;
+- the cron to receive documents and create Vendor Bills;
+- a Send via Peppol option and button in the invoice Send & Print wizard;
+- a method to send a invoice to the access point (the actual sending logic
+  is provided by other modules, see the Installation section);
+- the cron to update the status of Peppol document sent to the network.
+
+There are a few differences from the Odoo 17 module:
+- Only the the ``ubl_bis3`` format is supported for now.
+- Sending is done either synchronously or asynchronously via queue job (one job
+  per invoice), where in Odoo 17 sending is done asynchrounously in a cron job
+  with multiple invoices sent in one API call.

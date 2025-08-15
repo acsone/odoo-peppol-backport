@@ -1,16 +1,17 @@
-# -*- coding: utf-8 -*-
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 
 import contextlib
 import logging
-import requests
-from lxml import etree
 from hashlib import md5
 from urllib import parse
 
+import requests
+from lxml import etree
+
 from odoo import api, fields, models
-from odoo.addons.account_peppol.tools.demo_utils import handle_demo
 from odoo.tools.sql import column_exists, create_column
+
+from ..tools.demo_utils import handle_demo
 
 TIMEOUT = 10
 _logger = logging.getLogger(__name__)
@@ -135,7 +136,13 @@ class ResPartner(models.Model):
         if service_metadata is None:
             return False
 
-        document_type = self.env['account.edi.xml.ubl_21']._get_customization_ids()[ubl_cii_format]
+        # XXX PEPPOL BACKPORT
+        # # document_type = self.env['account.edi.xml.ubl_21']._get_customization_ids()[ubl_cii_format]
+        # In this backport we only support ubl_bis3 for now.
+        if ubl_cii_format != 'ubl_bis3':
+            return False
+        document_type = "urn:cen.eu:en16931:2017#compliant#urn:fdc:peppol.eu:2017:poacc:billing:3.0"
+        # /XXX PEPPOL BACKPORT
         for service in service_metadata.iterfind('{*}ServiceMetadataReference'):
             if document_type in parse.unquote_plus(service.attrib.get('href', '')):
                 return True

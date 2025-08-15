@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record model="ir.ui.view" id="account_invoice_send_inherit_account_wizard_form">
+        <field name="name">account.invoice.send.form.inherited.snailmail</field>
+        <field name="model">account.invoice.send</field>
+        <field name="inherit_id" ref="account.account_invoice_send_wizard_form" />
+        <field name="arch" type="xml">
+            <xpath expr="//div[@role='alert']" position="after">
+                <div class="alert alert-warning" role="alert"
+                    attrs="{'invisible': [('peppol_warning', '=', False)]}">
+                    <field name="peppol_warning" />
+                </div>
+            </xpath>
+            <xpath expr="//div[@name='option_email']" position='after'>
+                <field name="enable_peppol" invisible="1" />
+                <div name="option_peppol" attrs="{'invisible': [('enable_peppol', '=', False)]}">
+                    <div name="option" class="text-start d-inline-block">
+                        <field name="checkbox_send_peppol" />
+                        <b>
+                            <label for="checkbox_send_peppol" />
+                        </b>
+                        <field name="account_peppol_edi_mode_info"
+                            class="oe_inline o_form_label" />
+                    </div>
+                </div>
+            </xpath>
+            <xpath expr="//button[@special='cancel']" position="before">
+                <button string="Send via PEPPOl" data-hotkey="q"
+                    attrs="{'invisible': [('checkbox_send_peppol', '=', False)]}"
+                    name="action_send_peppol" type="object" class="send btn-primary o_mail_send" />
+            </xpath>
+        </field>
+    </record>
+</odoo>

@@ -1,12 +1,13 @@
-# -*- coding: utf-8 -*-
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 
 import re
-from stdnum import get_cc_module, ean
+
+from stdnum import ean, get_cc_module
 
 from odoo import _, api, fields, models
 from odoo.exceptions import ValidationError
-from odoo.addons.account.models.company import PEPPOL_LIST
+
+from odoo.addons.account_peppol_partner.models.eas_mapping import PEPPOL_LIST
 
 try:
     import phonenumbers
@@ -108,8 +109,8 @@ class ResCompany(models.Model):
 
         try:
             phone_nbr = phonenumbers.parse(phone_number)
-        except phonenumbers.phonenumberutil.NumberParseException:
-            raise ValidationError(error_message)
+        except phonenumbers.phonenumberutil.NumberParseException as e:
+            raise ValidationError(error_message) from e
 
         country_code = phonenumbers.phonenumberutil.region_code_for_number(phone_nbr)
         if country_code not in PEPPOL_LIST or not phonenumbers.is_valid_number(phone_nbr):
@@ -154,7 +155,7 @@ class ResCompany(models.Model):
         for company in self:
             if not company.peppol_purchase_journal_id and company.account_peppol_proxy_state not in ('not_registered', 'rejected'):
                 company.peppol_purchase_journal_id = self.env['account.journal'].search([
-                    *self.env['account.journal']._check_company_domain(company),
+                    ('company_id', '=', company.id),
                     ('type', '=', 'purchase'),
                 ], limit=1)
                 company.peppol_purchase_journal_id.is_peppol_journal = True
@@ -229,5 +230,5 @@ class ResCompany(models.Model):
         self.ensure_one()
         config_param = self.env['ir.config_parameter'].sudo().get_param('account_peppol.edi.mode')
         # by design, we can only have zero or one proxy user per company with type Peppol
-        peppol_user = self.sudo().account_edi_proxy_client_ids.filtered(lambda u: u.proxy_type == 'peppol')
+        peppol_user = self.sudo().account_edi_proxy_client_peppol_ids.filtered(lambda u: u.proxy_type == 'peppol')
         return peppol_user.edi_mode or config_param or 'prod'
