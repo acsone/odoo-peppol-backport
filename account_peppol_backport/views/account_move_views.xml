@@ -11,20 +11,20 @@
                         type="object"
                         class="btn btn-secondary"
                         string="Cancel PEPPOL"
-                        invisible="peppol_move_state != 'to_send' or state == 'draft'"/>
+                        attrs="{'invisible': ['|', ('peppol_move_state', '!=', 'to_send'), ('state', '=', 'draft')]}"/>
             </header>
 
             <xpath expr="//div[@name='journal_div']" position="after">
                 <label for="peppol_move_state"
-                       invisible="not peppol_move_state or state == 'draft' or move_type in ('in_invoice', 'in_refund')"/>
+                       attrs="{'invisible': ['|', '|', ('peppol_move_state', '=', False), ('state', '=', 'draft'), ('move_type', 'in', ('in_invoice', 'in_refund'))]}"/>
                 <div name="peppol_div"
                      class="d-flex"
-                     invisible="not peppol_move_state or state == 'draft' or move_type in ('in_invoice', 'in_refund')">
+                     attrs="{'invisible': ['|', '|', ('peppol_move_state', '=', False), ('state', '=', 'draft'), ('move_type', 'in', ('in_invoice', 'in_refund'))]}">
                     <field name="peppol_is_demo_uuid" invisible="1"/>
                     <field name="peppol_move_state" class="oe_inline"/>
-                    <span class="mx-1" invisible="not peppol_is_demo_uuid"> (Demo)</span>
+                    <span class="mx-1" attrs="{'invisible': [('peppol_is_demo_uuid', '=', False)]}"> (Demo)</span>
                     <span class="text-muted mx-3"
-                          invisible="peppol_move_state != 'to_send'">
+                          attrs="{'invisible': [('peppol_move_state', '!=', 'to_send')]}">
                         The invoice will be sent automatically to PEPPOL
                     </span>
                 </div>

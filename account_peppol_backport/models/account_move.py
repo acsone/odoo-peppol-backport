@@ -1,9 +1,11 @@
-# -*- coding:utf-8 -*-
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 
-from odoo import api, fields, models, _
+from odoo import _, api, fields, models
 from odoo.exceptions import UserError
-from odoo.addons.account.models.company import PEPPOL_MAILING_COUNTRIES
+
+from odoo.addons.account_peppol_partner.models.eas_mapping import (
+    PEPPOL_MAILING_COUNTRIES,
+)
 
 
 class AccountMove(models.Model):
@@ -45,7 +47,6 @@ class AccountMove(models.Model):
         if any(move.peppol_move_state in {'processing', 'done'} for move in self):
             raise UserError(_("Cannot cancel an entry that has already been sent to PEPPOL"))
         self.peppol_move_state = 'canceled'
-        self.send_and_print_values = False
 
     @api.depends('peppol_message_uuid')
     def _compute_peppol_is_demo_uuid(self):

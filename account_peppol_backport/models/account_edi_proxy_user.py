@@ -1,19 +1,23 @@
-# -*- coding: utf-8 -*-
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 
 import logging
+from base64 import b64encode
 
 from odoo import _, fields, models, modules, tools
-from odoo.addons.account_edi_proxy_client.models.account_edi_proxy_user import AccountEdiProxyError
-from odoo.addons.account_peppol.tools.demo_utils import handle_demo
 from odoo.exceptions import UserError
+
+from odoo.addons.account_edi_proxy_client_peppol.models.account_edi_proxy_user import (
+    AccountEdiProxyError,
+)
+
+from ..tools.demo_utils import handle_demo
 
 _logger = logging.getLogger(__name__)
 BATCH_SIZE = 50
 
 
-class AccountEdiProxyClientUser(models.Model):
-    _inherit = 'account_edi_proxy_client.user'
+class AccountEdiProxyClientPeppolUser(models.Model):
+    _inherit = 'account_edi_proxy_client_peppol.user'
 
     peppol_verification_code = fields.Char(string='SMS verification code')
     proxy_type = fields.Selection(selection_add=[('peppol', 'PEPPOL')], ondelete={'peppol': 'cascade'})
@@ -24,6 +28,7 @@ class AccountEdiProxyClientUser(models.Model):
 
 
     def _make_request(self, url, params=False):
+        assert not self.proxy_type or self.proxy_type == 'peppol', "This proxy object should only be used for Peppol requests."
         if self.proxy_type == 'peppol':
             return self._make_request_peppol(url, params=params)
         return super()._make_request(url, params=params)
@@ -38,7 +43,7 @@ class AccountEdiProxyClientUser(models.Model):
             if (
                 e.code == 'no_such_user'
                 and not self.active
-                and not self.company_id.account_edi_proxy_client_ids.filtered(lambda u: u.proxy_type == 'peppol')
+                and not self.company_id.account_edi_proxy_client_peppol_ids.filtered(lambda u: u.proxy_type == 'peppol')
             ):
                 self.company_id.write({
                     'account_peppol_proxy_state': 'not_registered',
@@ -46,8 +51,8 @@ class AccountEdiProxyClientUser(models.Model):
                 })
                 # commit the above changes before raising below
                 if not tools.config['test_enable'] and not modules.module.current_test:
-                    self.env.cr.commit()
-            raise AccountEdiProxyError(e.code, e.message)
+                    self.env.cr.commit()  # pylint: disable=invalid-commit
+            raise AccountEdiProxyError(e.code, e.message) from e
         return result
 
     def _get_proxy_urls(self):
@@ -119,7 +124,7 @@ class AccountEdiProxyClientUser(models.Model):
             # to create the move anyway
             if not journal:
                 journal = self.env['account.journal'].search([
-                    *self.env['account.journal']._check_company_domain(company),
+                    ('company_id', '=', company.id),
                     ('type', '=', 'purchase')
                 ], limit=1)
 
@@ -146,6 +151,13 @@ class AccountEdiProxyClientUser(models.Model):
                 }
 
                 try:
+                    # XXX PEPPOL BACKPORT Note when backporting to 15 and before.
+                    # If _create_document_from_attachment from
+                    # account_edi_ubl_cii is not available, this will create an empty move
+                    # with the XML document as attachment. This is not very useful.
+                    # At the very minimum, the part that extracts EmbeddedDocumentBinaryObject
+                    # should be recreated so users have at least a PDF attachment to
+                    # work with.
                     attachment = self.env['ir.attachment'].create(attachment_vals)
                     move = journal\
                         .with_context(
@@ -176,7 +188,7 @@ class AccountEdiProxyClientUser(models.Model):
                 proxy_acks.append(uuid)
 
             if not tools.config['test_enable']:
-                self.env.cr.commit()
+                self.env.cr.commit()  # pylint: disable=invalid-commit
             if proxy_acks:
                 edi_user._make_request(
                     f"{edi_user._get_server_url()}/api/peppol/1/ack",
@@ -184,7 +196,7 @@ class AccountEdiProxyClientUser(models.Model):
                 )
 
         if need_retrigger:
-            self.env.ref('account_peppol.ir_cron_peppol_get_new_documents')._trigger()
+            self.env.ref('account_peppol_backport.ir_cron_peppol_get_new_documents')._trigger()
 
     def _peppol_get_message_status(self):
         # Context added to not break stable policy: useful to tweak on databases processing large invoices
@@ -225,6 +237,7 @@ class AccountEdiProxyClientUser(models.Model):
                         continue
 
                     move.peppol_move_state = 'error'
+                    _logger.warning("%s", content['error'])
                     move._message_log(body=_("Peppol error: %s", content['error'].get('data', {}).get('message') or content['error']['message']))
                     continue
 
@@ -237,7 +250,7 @@ class AccountEdiProxyClientUser(models.Model):
             )
 
         if need_retrigger:
-            self.env.ref('account_peppol.ir_cron_peppol_get_message_status')._trigger()
+            self.env.ref('account_peppol_backport.ir_cron_peppol_get_message_status')._trigger()
 
     def _cron_peppol_get_participant_status(self):
         edi_users = self.search([('company_id.account_peppol_proxy_state', 'in', ['pending', 'not_verified', 'sent_verification']), ('proxy_type', '=', 'peppol')])
@@ -261,3 +274,83 @@ class AccountEdiProxyClientUser(models.Model):
 
             if proxy_user['peppol_state'] in state_map:
                 edi_user.company_id.account_peppol_proxy_state = state_map[proxy_user['peppol_state']]
+
+    def _peppol_send_document(self, invoice, xml_string, xml_filename):
+        """Send one invoice or credit note to the Peppol Access Point.
+
+        Log the result of the operation in the invoice chatter. Update the
+        peppol_move_state field of the invoice. Set the peppol_message_uuid
+        field of the invoice if the document was sent successfully.
+
+        The transaction *must* be committed after calling this method.
+        """
+        self.ensure_one()
+
+        if invoice.peppol_move_state in ("processing", "done"):
+            _logger.warning(
+                "Not sending invoice %s to Peppol Access Point "
+                "because it's state %s does not allow it.",
+                invoice.display_name,
+                invoice.peppol_move_state,
+            )
+            return
+
+        partner = invoice.partner_id.commercial_partner_id
+        if not partner.account_peppol_is_endpoint_valid:
+            invoice.peppol_move_state = "error"
+            invoice._message_log(body=_(
+                "Please verify partner %s configuration in partner settings.",
+                partner.display_name,
+            ))
+            return
+        if not partner.peppol_eas or not partner.peppol_endpoint:
+            invoice.peppol_move_state = "error"
+            invoice._message_log(body=_(
+                "The partner %s is missing Peppol EAS and/or Endpoint identifier.",
+                partner.display_name,
+            ))
+            return
+
+        receiver_identification = f"{partner.peppol_eas}:{partner.peppol_endpoint}"
+        params = {
+            "documents": [
+                {
+                    "filename": xml_filename,
+                    "receiver": receiver_identification,
+                    "ubl": b64encode(xml_string).decode(),
+                }
+            ]
+        }
+
+        try:
+            response = self._make_request(
+                f"{self._get_server_url()}/api/peppol/1/send_document",
+                params=params,
+            )
+        except AccountEdiProxyError as e:
+            invoice.peppol_move_state = "error"
+            invoice._message_log(body=_("Peppol proxy error: %s", e.message))
+        else:
+            if response.get("error"):
+                # at the moment the only error that can happen here is ParticipantNotReady error
+                invoice.peppol_move_state = "error"
+                invoice._message_log(body=_("Peppol error: %s", response["error"].get("message")))
+            else:
+                # The response only contains message uuids,
+                # so we have to rely on the order to connect peppol messages to account.move.
+                # In this case, we have only one invoice and response message.
+                message_uuid = None
+                messages = response.get("messages", [])
+                if messages:
+                    message_uuid = messages[0].get("message_uuid")
+                if message_uuid:
+                    invoice.peppol_message_uuid = message_uuid
+                    invoice.peppol_move_state = "processing"
+                    invoice._message_log(body=_(
+                        "The document has been sent to the Peppol Access Point for processing"
+                    ))
+                else:
+                    invoice.peppol_move_state = "error"
+                    invoice._message_log(body=_(
+                        "Peppol proxy did not return a message uuid."
+                    ))
