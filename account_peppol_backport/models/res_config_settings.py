@@ -1,12 +1,17 @@
-# -*- coding: utf-8 -*-
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 
 from odoo import _, api, fields, models, modules, tools
 from odoo.exceptions import UserError, ValidationError
 
-from odoo.addons.account_edi_proxy_client.models.account_edi_proxy_user import AccountEdiProxyError
-from odoo.addons.account_edi_ubl_cii.models.account_edi_common import EAS_MAPPING
-from odoo.addons.account_peppol.tools.demo_utils import handle_demo
+from odoo.addons.account_edi_proxy_client_peppol.models.account_edi_proxy_user import (
+    AccountEdiProxyError,
+)
+from odoo.addons.account_peppol_partner.models.eas_mapping import (
+    EAS_MAPPING,
+    PEPPOL_LIST,
+)
+
+from ..tools.demo_utils import handle_demo
 
 # at the moment, only European countries are accepted
 ALLOWED_COUNTRIES = set(EAS_MAPPING.keys()) - {'AU', 'SG', 'NZ'}
@@ -15,8 +20,12 @@ ALLOWED_COUNTRIES = set(EAS_MAPPING.keys()) - {'AU', 'SG', 'NZ'}
 class ResConfigSettings(models.TransientModel):
     _inherit = 'res.config.settings'
 
+    is_account_peppol_eligible = fields.Boolean(
+        string="PEPPOL eligible",
+        compute="_compute_is_account_peppol_eligible",
+    )  # technical field used for showing the Peppol settings conditionally
     account_peppol_edi_user = fields.Many2one(
-        comodel_name='account_edi_proxy_client.user',
+        comodel_name='account_edi_proxy_client_peppol.user',
         string='EDI user',
         compute='_compute_account_peppol_edi_user',
     )
@@ -62,7 +71,7 @@ class ResConfigSettings(models.TransientModel):
         }
 
         if not edi_user:
-            edi_user = self.company_id.account_edi_proxy_client_ids.filtered(lambda u: u.proxy_type == 'peppol')
+            edi_user = self.company_id.account_edi_proxy_client_peppol_ids.filtered(lambda u: u.proxy_type == 'peppol')
 
         params = params or {}
         try:
@@ -71,7 +80,7 @@ class ResConfigSettings(models.TransientModel):
                 params=params,
             )
         except AccountEdiProxyError as e:
-            raise UserError(e.message)
+            raise UserError(e.message) from e
 
         if 'error' in response:
             error_code = response['error'].get('code')
@@ -91,6 +100,13 @@ class ResConfigSettings(models.TransientModel):
     # -------------------------------------------------------------------------
     # COMPUTE METHODS
     # -------------------------------------------------------------------------
+    @api.depends("country_code")
+    def _compute_is_account_peppol_eligible(self):
+        # we want to show Peppol settings only to customers that are eligible for Peppol,
+        # except countries that are not in Europe
+        for config in self:
+            config.is_account_peppol_eligible = config.country_code in PEPPOL_LIST
+
     @api.depends('is_account_peppol_eligible', 'account_peppol_edi_user')
     def _compute_account_peppol_mode_constraint(self):
         mode_constraint = self.env['ir.config_parameter'].sudo().get_param('account_peppol.mode_constraint')
@@ -108,10 +124,10 @@ class ResConfigSettings(models.TransientModel):
                 self.env['ir.config_parameter'].sudo().set_param('account_peppol.edi.mode', config.account_peppol_edi_mode)
                 return
 
-    @api.depends("company_id.account_edi_proxy_client_ids")
+    @api.depends("company_id.account_edi_proxy_client_peppol_ids")
     def _compute_account_peppol_edi_user(self):
         for config in self:
-            config.account_peppol_edi_user = config.company_id.account_edi_proxy_client_ids.filtered(
+            config.account_peppol_edi_user = config.company_id.account_edi_proxy_client_peppol_ids.filtered(
                 lambda u: u.proxy_type == 'peppol')
 
     @api.depends('account_peppol_eas', 'account_peppol_endpoint')
@@ -149,7 +165,7 @@ class ResConfigSettings(models.TransientModel):
             raise ValidationError(_("Please enter a primary contact email to verify your application."))
 
         company = self.company_id
-        edi_proxy_client = self.env['account_edi_proxy_client.user']
+        edi_proxy_client = self.env['account_edi_proxy_client_peppol.user']
         edi_identification = edi_proxy_client._get_proxy_identification(company, 'peppol')
         company.partner_id._check_peppol_eas()
 
@@ -174,7 +190,7 @@ class ResConfigSettings(models.TransientModel):
         # but remains on the proxy side.
         # it is important to keep these two in sync, so commit before activating.
         if not tools.config['test_enable'] and not modules.module.current_test:
-            self.env.cr.commit()
+            self.env.cr.commit()  # pylint: disable=invalid-commit
 
         company_details = {
             'peppol_company_name': company.display_name,
@@ -257,7 +273,7 @@ class ResConfigSettings(models.TransientModel):
         self.account_peppol_proxy_state = 'pending'
         self.account_peppol_verification_code = False
         # in case they have already been activated on the IAP side
-        self.env.ref('account_peppol.ir_cron_peppol_get_participant_status')._trigger()
+        self.env.ref('account_peppol_backport.ir_cron_peppol_get_participant_status')._trigger()
 
     def button_cancel_peppol_registration(self):
         """
@@ -274,7 +290,7 @@ class ResConfigSettings(models.TransientModel):
         # check if the participant has been already registered
         self.account_peppol_edi_user._peppol_get_participant_status()
         if not tools.config['test_enable'] and not modules.module.current_test:
-            self.env.cr.commit()
+            self.env.cr.commit()  # pylint: disable=invalid-commit
 
         if self.account_peppol_proxy_state == 'active':
             raise UserError(_("Can't cancel an active registration. Please request a migration or deregister instead."))
@@ -311,10 +327,10 @@ class ResConfigSettings(models.TransientModel):
 
         # fetch all documents and message statuses before unlinking the edi user
         # so that the invoices are acknowledged
-        self.env['account_edi_proxy_client.user']._cron_peppol_get_message_status()
-        self.env['account_edi_proxy_client.user']._cron_peppol_get_new_documents()
+        self.env['account_edi_proxy_client_peppol.user']._cron_peppol_get_message_status()
+        self.env['account_edi_proxy_client_peppol.user']._cron_peppol_get_new_documents()
         if not tools.config['test_enable'] and not modules.module.current_test:
-            self.env.cr.commit()
+            self.env.cr.commit()  # pylint: disable=invalid-commit
 
         self._call_peppol_proxy(endpoint='/api/peppol/1/cancel_peppol_registration')
         self.account_peppol_proxy_state = 'not_registered'
