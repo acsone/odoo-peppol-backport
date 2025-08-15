@@ -2,8 +2,9 @@ import base64
 import hashlib
 import hmac
 import json
-import requests
 import time
+
+import requests
 import werkzeug.urls
 
 
@@ -32,7 +33,7 @@ class OdooEdiProxyAuth(requests.auth.AuthBase):
             body = body.decode()
         body = json.loads(body)
 
-        message = '%s|%s|%s|%s|%s' % (
+        message = '%s|%s|%s|%s|%s' % (  # noqa: UP031
             msg_timestamp,  # timestamp
             parsed_url.path,  # url path
             self.id_client,
