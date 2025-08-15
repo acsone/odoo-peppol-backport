@@ -1,20 +1,19 @@
-from odoo import api, models, fields, _
-from odoo.exceptions import UserError
-from odoo.tools import index_exists
-from .account_edi_proxy_auth import OdooEdiProxyAuth
-
-from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives.asymmetric import rsa
-from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.asymmetric import padding
-from cryptography.fernet import Fernet
-from psycopg2 import OperationalError
-import requests
-import uuid
 import base64
 import logging
+import uuid
 
+import requests
+from cryptography.fernet import Fernet
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import padding, rsa
+from psycopg2 import OperationalError
+
+from odoo import _, fields, models
+from odoo.exceptions import UserError
+from odoo.tools import index_exists
+
+from .account_edi_proxy_auth import OdooEdiProxyAuth
 
 _logger = logging.getLogger(__name__)
 
@@ -29,15 +28,15 @@ class AccountEdiProxyError(Exception):
         super().__init__(message or code)
 
 
-class AccountEdiProxyClientUser(models.Model):
+class AccountEdiProxyClientPeppolUser(models.Model):
     """Represents a user of the proxy for an electronic invoicing format.
     An edi_proxy_user has a unique identification on a specific format (for example, the vat for Peppol) which
     allows to identify him when receiving a document addressed to him. It is linked to a specific company on a specific
     Odoo database.
     It also owns a key with which each file should be decrypted with (the proxy encrypt all the files with the public key).
     """
-    _name = 'account_edi_proxy_client.user'
-    _description = 'Account EDI proxy user'
+    _name = 'account_edi_proxy_client_peppol.user'
+    _description = 'Account EDI proxy user (v17 backport)'
 
     active = fields.Boolean(default=True)
     id_client = fields.Char(required=True)
@@ -65,16 +64,16 @@ class AccountEdiProxyClientUser(models.Model):
 
     def _auto_init(self):
         super()._auto_init()
-        if not index_exists(self.env.cr, 'account_edi_proxy_client_user_unique_active_edi_identification'):
+        if not index_exists(self.env.cr, 'account_edi_proxy_client_peppol_user_unique_active_edi_identification'):
             self.env.cr.execute("""
-                CREATE UNIQUE INDEX account_edi_proxy_client_user_unique_active_edi_identification
-                                 ON account_edi_proxy_client_user(edi_identification, proxy_type, edi_mode)
+                CREATE UNIQUE INDEX account_edi_proxy_client_peppol_user_unique_active_edi_identification
+                                 ON account_edi_proxy_client_peppol_user(edi_identification, proxy_type, edi_mode)
                               WHERE (active = True)
             """)
-        if not index_exists(self.env.cr, 'account_edi_proxy_client_user_unique_active_company_proxy'):
+        if not index_exists(self.env.cr, 'account_edi_proxy_client_peppol_user_unique_active_company_proxy'):
             self.env.cr.execute("""
-                CREATE UNIQUE INDEX account_edi_proxy_client_user_unique_active_company_proxy
-                                 ON account_edi_proxy_client_user(company_id, proxy_type, edi_mode)
+                CREATE UNIQUE INDEX account_edi_proxy_client_peppol_user_unique_active_company_proxy
+                                 ON account_edi_proxy_client_peppol_user(company_id, proxy_type, edi_mode)
                               WHERE (active = True)
             """)
 
@@ -127,9 +126,9 @@ class AccountEdiProxyClientUser(models.Model):
                 timeout=TIMEOUT,
                 headers={'content-type': 'application/json'},
                 auth=OdooEdiProxyAuth(user=self)).json()
-        except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema, requests.exceptions.Timeout, requests.exceptions.HTTPError):
+        except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema, requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
             raise AccountEdiProxyError('connection_error',
-                _('The url that this service requested returned an error. The url it tried to contact was %s', url))
+                _('The url that this service requested returned an error. The url it tried to contact was %s', url)) from e
 
         if 'error' in response:
             message = _('The url that this service requested returned an error. The url it tried to contact was %s. %s', url, response['error']['message'])
@@ -142,7 +141,8 @@ class AccountEdiProxyClientUser(models.Model):
             error_code = proxy_error['code']
             if error_code == 'refresh_token_expired':
                 self._renew_token()
-                self.env.cr.commit() # We do not want to lose it if in the _make_request below something goes wrong
+                # We do not want to lose it if in the _make_request below something goes wrong
+                self.env.cr.commit()  # pylint: disable=invalid-commit
                 return self._make_request(url, params)
             if error_code == 'no_such_user':
                 # This error is also raised if the user didn't exchange data and someone else claimed the edi_identificaiton.
@@ -197,7 +197,7 @@ class AccountEdiProxyClientUser(models.Model):
                     'proxy_type': proxy_type,
                 })
             except AccountEdiProxyError as e:
-                raise UserError(e.message)
+                raise UserError(e.message) from e
             if 'error' in response:
                 raise UserError(response['error'])
 
@@ -220,7 +220,7 @@ class AccountEdiProxyClientUser(models.Model):
         '''
         try:
             with self.env.cr.savepoint(flush=False):
-                self.env.cr.execute('SELECT * FROM account_edi_proxy_client_user WHERE id IN %s FOR UPDATE NOWAIT', [tuple(self.ids)])
+                self.env.cr.execute('SELECT * FROM account_edi_proxy_client_peppol_user WHERE id IN %s FOR UPDATE NOWAIT', [tuple(self.ids)])
         except OperationalError as e:
             if e.pgcode == '55P03':
                 return
