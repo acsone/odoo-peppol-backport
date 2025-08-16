@@ -17,7 +17,8 @@ odoo_test_flavor: Both
 odoo_version: 16.0
 org_name: Odoo Community Association (OCA)
 org_slug: OCA
-rebel_module_groups: []
+rebel_module_groups:
+- account_peppol_send_queue_job
 repo_description: Backport of account_peppol from Odoo 17 to previous versions.
 repo_name: Backport of Odoo Peppol support
 repo_slug: odoo-peppol-backport
