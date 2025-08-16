@@ -243,6 +243,9 @@ class AccountEdiProxyClientPeppolUser(models.Model):
 
                 move.peppol_move_state = content['state']
                 move._message_log(body=_('Peppol status update: %s', content['state']))
+                if move.peppol_move_state == 'done':
+                    # XXX PEPPOL BACKPORT: this is not in Odoo 17
+                    move.is_move_sent = True
 
             edi_user._make_request(
                 f"{edi_user._get_server_url()}/api/peppol/1/ack",

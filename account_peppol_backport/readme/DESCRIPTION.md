@@ -13,3 +13,6 @@ There are a few differences from the Odoo 17 module:
 - Sending is done either synchronously or asynchronously via queue job (one job
   per invoice), where in Odoo 17 sending is done asynchrounously in a cron job
   with multiple invoices sent in one API call.
+- The flag `is_move_sent` is set when the Peppol status of an Invoice is set to
+  `done` by the batch that updates the statuses. The upstream module does not
+  handle the `is_move_sent` flag.
