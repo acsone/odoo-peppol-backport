@@ -17,9 +17,9 @@ Account Peppol Send Immediate
 .. |badge1| image:: https://img.shields.io/badge/maturity-Beta-yellow.png
     :target: https://odoo-community.org/page/development-status
     :alt: Beta
-.. |badge2| image:: https://img.shields.io/badge/license-AGPL--3-blue.png
-    :target: http://www.gnu.org/licenses/agpl-3.0-standalone.html
-    :alt: License: AGPL-3
+.. |badge2| image:: https://img.shields.io/badge/license-LGPL--3-blue.png
+    :target: http://www.gnu.org/licenses/lgpl-3.0-standalone.html
+    :alt: License: LGPL-3
 .. |badge3| image:: https://img.shields.io/badge/github-OCA%2Fodoo--peppol--backport-lightgray.png?logo=github
     :target: https://github.com/OCA/odoo-peppol-backport/tree/16.0/account_peppol_send_immediate
     :alt: OCA/odoo-peppol-backport
