@@ -92,8 +92,9 @@ class AccountInvoiceSend(models.TransientModel):
         }
         for wizard in self:
             edi_mode = wizard.invoice_ids[0].company_id.account_edi_proxy_client_peppol_ids.edi_mode
+            display_edi_mode = mode_strings.get(edi_mode)
             wizard.account_peppol_edi_mode_info = (
-                f" ({mode_strings.get(edi_mode)})" if edi_mode else ""
+                f" ({display_edi_mode})" if display_edi_mode else ""
             )
 
     def action_send_and_print(self):
