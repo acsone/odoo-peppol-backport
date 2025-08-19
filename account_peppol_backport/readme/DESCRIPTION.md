@@ -18,3 +18,6 @@ There are a few differences from the Odoo 17 module:
   handle the `is_move_sent` flag.
 - It can log the sent XML file in the chatter when a
   `account_peppol_backport.log_sent_xml` system parameter is set to a non empty value.
+
+Note that when doing the registration with this module, the company is registered as
+a participant, so a receiver. In v18, it is possible to register as a sender only.
