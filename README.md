@@ -17,7 +17,16 @@ Backport of account_peppol from Odoo 17 to previous versions.
 
 [//]: # (addons)
 
-This part will be replaced when running the oca-gen-addons-table script from OCA/maintainer-tools.
+Available addons
+----------------
+addon | version | maintainers | summary
+--- | --- | --- | ---
+[account_edi_proxy_client_peppol](account_edi_proxy_client_peppol/) | 16.0.1.0.0 |  | Proxy features for the peppol access point
+[account_peppol_backport](account_peppol_backport/) | 16.0.1.0.0 |  | This module is used to register with the Odoo SA PEPPOL access point
+[account_peppol_partner](account_peppol_partner/) | 16.0.1.0.0 |  | Peppol information on partners.
+[account_peppol_send_format_odoo](account_peppol_send_format_odoo/) | 16.0.1.0.0 |  | Convert invoices to Peppol XML using the Odoo's account_edi_ubl_cii module.
+[account_peppol_send_immediate](account_peppol_send_immediate/) | 16.0.1.0.0 |  | Send the invoices to the Peppol accesspoint immediately.
+[account_peppol_send_queue_job](account_peppol_send_queue_job/) | 16.0.1.0.0 |  | Send invoices to the Peppol accesspoint as queue jobs..
 
 [//]: # (end addons)
 
