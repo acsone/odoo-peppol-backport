@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="0">
+    <record id="account_edi_proxy_client_peppol_user_comp_rule" model="ir.rule">
+        <field name="name">Account EDI Proxy Client Backport User</field>
+        <field name="model_id" ref="model_account_edi_proxy_client_peppol_user"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+</odoo>
