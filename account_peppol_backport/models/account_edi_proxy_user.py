@@ -349,9 +349,21 @@ class AccountEdiProxyClientPeppolUser(models.Model):
                 if message_uuid:
                     invoice.peppol_message_uuid = message_uuid
                     invoice.peppol_move_state = "processing"
+                    sent_xml_attachment = None
+                    if self.env["ir.config_parameter"].sudo().get_param(
+                        "account_peppol_backport.log_sent_xml"
+                    ):
+                        sent_xml_attachment = self.env["ir.attachment"].create({
+                            "raw": xml_string,
+                            "name": xml_filename,
+                            "type": "binary",
+                            "mimetype": "application/xml",
+                            "res_model": "account.move",
+                            "res_id": invoice.id,
+                        })
                     invoice._message_log(body=_(
                         "The document has been sent to the Peppol Access Point for processing"
-                    ))
+                    ), attachment_ids=[sent_xml_attachment.id] if sent_xml_attachment else [])
                 else:
                     invoice.peppol_move_state = "error"
                     invoice._message_log(body=_(

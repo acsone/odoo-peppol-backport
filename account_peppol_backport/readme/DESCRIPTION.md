@@ -16,3 +16,5 @@ There are a few differences from the Odoo 17 module:
 - The flag `is_move_sent` is set when the Peppol status of an Invoice is set to
   `done` by the batch that updates the statuses. The upstream module does not
   handle the `is_move_sent` flag.
+- It can log the sent XML file in the chatter when a
+  `account_peppol_backport.log_sent_xml` system parameter is set to a non empty value.
