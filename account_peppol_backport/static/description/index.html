@@ -390,13 +390,16 @@ logic is provided by other modules, see the Installation section);</li>
 <p>There are a few differences from the Odoo 17 module:</p>
 <ul class="simple">
 <li>Only the the <tt class="docutils literal">ubl_bis3</tt> format is supported for now.</li>
-<li>The flag <tt class="docutils literal">is_move_sent</tt> is set when the Peppol status of an Invoice
-is set to <tt class="docutils literal">done</tt> by the batch that updates the statuses. The
-upstream module does not handle the <tt class="docutils literal">is_move_sent</tt> flag.</li>
 <li>Sending is done either synchronously or asynchronously via queue job
 (one job per invoice), where in Odoo 17 sending is done
 asynchrounously in a cron job with multiple invoices sent in one API
 call.</li>
+<li>The flag <tt class="docutils literal">is_move_sent</tt> is set when the Peppol status of an Invoice
+is set to <tt class="docutils literal">done</tt> by the batch that updates the statuses. The
+upstream module does not handle the <tt class="docutils literal">is_move_sent</tt> flag.</li>
+<li>It can log the sent XML file in the chatter when a
+<tt class="docutils literal">account_peppol_backport.log_sent_xml</tt> system parameter is set to a
+non empty value.</li>
 </ul>
 <p><strong>Table of contents</strong></p>
 <div class="contents local topic" id="contents">
