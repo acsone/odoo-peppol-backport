@@ -61,7 +61,10 @@ Authors
 Contributors
 ------------
 
--  Stéphane Bidoul stephane.bidoul@acsone.eu
+- Stéphane Bidoul stephane.bidoul@acsone.eu
+- `Coop IT Easy SC <https://coopiteasy.be>`__:
+
+  - hugues de keyzer
 
 Other credits
 -------------
