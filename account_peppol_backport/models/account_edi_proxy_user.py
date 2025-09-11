@@ -160,6 +160,7 @@ class AccountEdiProxyClientPeppolUser(models.Model):
                     # work with.
                     attachment = self.env['ir.attachment'].create(attachment_vals)
                     move = journal\
+                        .with_company(company)\
                         .with_context(
                             default_move_type='in_invoice',
                             default_peppol_move_state=content['state'],
