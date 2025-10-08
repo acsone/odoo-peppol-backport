@@ -14,7 +14,8 @@
     ],
     "external_dependencies": {
         "python": ["phonenumbers"],
-    },
+    'installable': False,
+},
     'data': [
         'data/cron.xml',
         'views/account_journal_dashboard_views.xml',
@@ -31,7 +32,9 @@
         'web.assets_backend': [
             'account_peppol_backport/static/src/components/**/*',
         ],
-    },
+    'installable': False,
+},
     'author': 'Odoo S.A.,ACSONE SA/NV,Odoo Community Association (OCA)',
     'website': 'https://github.com/acsone/odoo-peppol-backport',
+    'installable': False,
 }
