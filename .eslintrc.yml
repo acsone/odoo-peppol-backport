@@ -4,11 +4,11 @@ env:
 
 # See https://github.com/OCA/odoo-community.org/issues/37#issuecomment-470686449
 parserOptions:
-  ecmaVersion: 2020
+  ecmaVersion: 2019
 
 overrides:
   - files:
-      - "*/static/src/components/**/*.js"
+      - "**/*.esm.js"
     parserOptions:
       sourceType: module
 

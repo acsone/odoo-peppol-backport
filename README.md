@@ -1,9 +1,9 @@
 
-[![Runboat](https://img.shields.io/badge/runboat-Try%20me-875A7B.png)](https://runboat.odoo-community.org/builds?repo=OCA/odoo-peppol-backport&target_branch=16.0)
-[![Pre-commit Status](https://github.com/OCA/odoo-peppol-backport/actions/workflows/pre-commit.yml/badge.svg?branch=16.0)](https://github.com/OCA/odoo-peppol-backport/actions/workflows/pre-commit.yml?query=branch%3A16.0)
-[![Build Status](https://github.com/OCA/odoo-peppol-backport/actions/workflows/test.yml/badge.svg?branch=16.0)](https://github.com/OCA/odoo-peppol-backport/actions/workflows/test.yml?query=branch%3A16.0)
-[![codecov](https://codecov.io/gh/OCA/odoo-peppol-backport/branch/16.0/graph/badge.svg)](https://codecov.io/gh/OCA/odoo-peppol-backport)
-[![Translation Status](https://translation.odoo-community.org/widgets/odoo-peppol-backport-16-0/-/svg-badge.svg)](https://translation.odoo-community.org/engage/odoo-peppol-backport-16-0/?utm_source=widget)
+[![Runboat](https://img.shields.io/badge/runboat-Try%20me-875A7B.png)](https://runboat.odoo-community.org/builds?repo=OCA/odoo-peppol-backport&target_branch=15.0)
+[![Pre-commit Status](https://github.com/OCA/odoo-peppol-backport/actions/workflows/pre-commit.yml/badge.svg?branch=15.0)](https://github.com/OCA/odoo-peppol-backport/actions/workflows/pre-commit.yml?query=branch%3A15.0)
+[![Build Status](https://github.com/OCA/odoo-peppol-backport/actions/workflows/test.yml/badge.svg?branch=15.0)](https://github.com/OCA/odoo-peppol-backport/actions/workflows/test.yml?query=branch%3A15.0)
+[![codecov](https://codecov.io/gh/OCA/odoo-peppol-backport/branch/15.0/graph/badge.svg)](https://codecov.io/gh/OCA/odoo-peppol-backport)
+[![Translation Status](https://translation.odoo-community.org/widgets/odoo-peppol-backport-15-0/-/svg-badge.svg)](https://translation.odoo-community.org/engage/odoo-peppol-backport-15-0/?utm_source=widget)
 
 <!-- /!\ do not modify above this line -->
 
@@ -17,16 +17,7 @@ Backport of account_peppol from Odoo 17 to previous versions.
 
 [//]: # (addons)
 
-Available addons
-----------------
-addon | version | maintainers | summary
---- | --- | --- | ---
-[account_edi_proxy_client_peppol](account_edi_proxy_client_peppol/) | 16.0.1.0.0 |  | Proxy features for the peppol access point
-[account_peppol_backport](account_peppol_backport/) | 16.0.1.0.0 |  | This module is used to register with the Odoo SA PEPPOL access point
-[account_peppol_partner](account_peppol_partner/) | 16.0.1.0.0 |  | Peppol information on partners.
-[account_peppol_send_format_odoo](account_peppol_send_format_odoo/) | 16.0.1.0.0 |  | Convert invoices to Peppol XML using the Odoo's account_edi_ubl_cii module.
-[account_peppol_send_immediate](account_peppol_send_immediate/) | 16.0.1.0.0 |  | Send the invoices to the Peppol accesspoint immediately.
-[account_peppol_send_queue_job](account_peppol_send_queue_job/) | 16.0.1.0.0 |  | Send invoices to the Peppol accesspoint as queue jobs..
+This part will be replaced when running the oca-gen-addons-table script from OCA/maintainer-tools.
 
 [//]: # (end addons)
 

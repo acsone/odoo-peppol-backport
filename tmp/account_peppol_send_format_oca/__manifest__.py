@@ -1,21 +1,20 @@
 # Copyright 2025 ACSONE SA/NV
-# License LGPL-3.0 or later (https://www.gnu.org/licenses/lgpl).
+# License AGPL-3.0 or later (https://www.gnu.org/licenses/agpl).
 
 {
-    "name": "Account Peppol Send via Queue Job",
-    "summary": """Send  invoices to the Peppol accesspoint as queue jobs..""",
+    "name": "Account Peppol Send Format OCA",
+    "summary": """Convert invoices to Peppol XML using OCA's `account_invoice_ubl` module.""",
     "version": "16.0.1.0.0",
-    "license": "LGPL-3",
+    "license": "AGPL-3",
     "author": "ACSONE SA/NV,Odoo Community Association (OCA)",
     "website": "https://github.com/acsone/odoo-peppol-backport",
     "depends": [
+        "account_invoice_ubl",
         "account_peppol_backport",
-        "queue_job",
     ],
     "excludes": [
-        "account_peppol_send_immediate",
+        "account_peppol_send_format_odoo",
     ],
     "data": [],
     "demo": [],
-    'installable': False,
 }
