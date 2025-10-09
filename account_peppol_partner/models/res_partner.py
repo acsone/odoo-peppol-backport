@@ -25,6 +25,7 @@ class ResPartner(models.Model):
         store=True,
         readonly=False,
     )
+    company_registry = fields.Char(string="Company ID", compute='_compute_company_registry', store=True, readonly=False,help="The registry number of the company. Use it if it is different from the Tax ID. It must be unique across all partners of a same country")
     peppol_endpoint = fields.Char(
         help="Unique identifier used by the BIS Billing 3.0 and its derivatives, also known as 'Endpoint ID'.",
         compute="_compute_peppol_endpoint",
@@ -134,6 +135,15 @@ class ResPartner(models.Model):
         ]
     )
     hide_peppol_fields = fields.Boolean(compute='_compute_hide_peppol_fields')
+
+    @api.depends('vat', 'country_id')
+    def _compute_company_registry(self):
+        # OVERRIDE
+        # If a belgian company has a VAT number then it's company registry is it's VAT Number (without country code).
+        for partner in self.filtered(lambda p: p.country_id.code == 'BE' and p.vat):
+            vat_country, vat_number = self._split_vat(partner.vat)
+            if vat_country == 'be' and self.simple_vat_check(vat_country, vat_number):
+                partner.company_registry = vat_number
 
     @api.constrains('peppol_eas')
     def _check_peppol_eas(self):

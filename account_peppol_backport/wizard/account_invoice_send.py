@@ -114,9 +114,7 @@ class AccountInvoiceSend(models.TransientModel):
             self._peppol_send_invoice(invoice)
 
     @api.model
-    def _peppol_embed_attachments(
-        self, xml_string: bytes, attachments: list[PeppolAttachment]
-    ) -> str:
+    def _peppol_embed_attachments(self, xml_string, attachments):
         if not attachments:
             return xml_string
         tree = etree.fromstring(xml_string)
@@ -142,7 +140,7 @@ class AccountInvoiceSend(models.TransientModel):
         )
 
     @api.model
-    def _peppol_generate_xml_string_and_filename(self, invoice) -> tuple[bytes, str]:
+    def _peppol_generate_xml_string_and_filename(self, invoice):
         raise SystemError(
             "This method should be overridden in the specific format module to generate "
             "the Peppol XML string and filename. Please install the "

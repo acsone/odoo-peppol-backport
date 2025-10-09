@@ -4,7 +4,7 @@
 {
     "name": "Account Peppol Send via Queue Job",
     "summary": """Send  invoices to the Peppol accesspoint as queue jobs..""",
-    "version": "16.0.1.0.0",
+    "version": "15.0.1.0.0",
     "license": "LGPL-3",
     "author": "ACSONE SA/NV,Odoo Community Association (OCA)",
     "website": "https://github.com/acsone/odoo-peppol-backport",
