@@ -76,8 +76,8 @@ repos:
         files: \.(css|htm|html|js|json|jsx|less|md|scss|toml|ts|xml|yaml|yml)$
         language: node
         additional_dependencies:
-          - "prettier@2.1.2"
-          - "@prettier/plugin-xml@0.12.0"
+          - "prettier@2.7.1"
+          - "@prettier/plugin-xml@2.2.0"
   - repo: local
     hooks:
       - id: eslint
@@ -90,7 +90,7 @@ repos:
         types: [javascript]
         language: node
         additional_dependencies:
-          - "eslint@7.8.1"
+          - "eslint@8.24.0"
           - "eslint-plugin-jsdoc@"
           - "globals@"
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -131,8 +131,9 @@ repos:
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]
       - id: ruff-format
+        exclude: ^(account_peppol_backport/|account_edi_proxy_client_peppol/|account_peppol_partner/)
   - repo: https://github.com/OCA/pylint-odoo
-    rev: 7.0.2
+    rev: v8.0.19
     hooks:
       - id: pylint_odoo
         name: pylint with optional checks
