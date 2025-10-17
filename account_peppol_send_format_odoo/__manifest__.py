@@ -4,7 +4,7 @@
 {
     "name": "Account Peppol Send Format Odoo",
     "summary": """Convert invoices to Peppol XML using the Odoo's account_edi_ubl_cii module.""",
-    "version": "16.0.1.0.0",
+    "version": "14.0.1.0.0",
     "license": "LGPL-3",
     "author": "ACSONE SA/NV,Odoo Community Association (OCA)",
     "website": "https://github.com/acsone/odoo-peppol-backport",
@@ -18,5 +18,5 @@
     ],
     "data": [],
     "demo": [],
-    'installable': False,
+    "installable": True,
 }

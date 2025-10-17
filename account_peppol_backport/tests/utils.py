@@ -5,7 +5,7 @@ import requests
 import werkzeug.urls
 from requests import PreparedRequest, Session
 
-from odoo.tests.common import TransactionCase
+from odoo.tests.common import SavepointCase
 
 _logger = logging.getLogger(__name__)
 
@@ -17,7 +17,7 @@ class BlockedRequest(requests.exceptions.ConnectionError):
     pass
 
 
-class RequestHandlerTransactionCase(TransactionCase):
+class RequestHandlerTransactionCase(SavepointCase):
     @classmethod
     def _request_handler(cls, s: Session, r: PreparedRequest, /, **kw):
         # allow localhost requests
@@ -43,8 +43,14 @@ class RequestHandlerTransactionCase(TransactionCase):
     def setUpClass(cls):
         def check_remaining_patchers():
             for patcher in _patch._active_patches:
-                _logger.warning("A patcher (targeting %s.%s) was remaining active at the end of %s, disabling it...", patcher.target, patcher.attribute, cls.__name__)
+                _logger.warning(
+                    "A patcher (targeting %s.%s) was remaining active at the end of %s, disabling it...",
+                    patcher.target,
+                    patcher.attribute,
+                    cls.__name__,
+                )
                 patcher.stop()
+
         cls.addClassCleanup(check_remaining_patchers)
         super().setUpClass()
         if 'standard' in cls.test_tags:
@@ -53,7 +59,7 @@ class RequestHandlerTransactionCase(TransactionCase):
             # pylint: disable=unnecessary-lambda
             patcher = patch.object(
                 requests.sessions.Session,
-                'send',
+                "send",
                 lambda s, r, **kwargs: cls._request_handler(s, r, **kwargs),
             )
             patcher.start()

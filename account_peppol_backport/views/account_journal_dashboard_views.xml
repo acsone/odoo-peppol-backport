@@ -11,6 +11,7 @@
                     <field name="account_peppol_proxy_state"/>
                 </xpath>
 
+
                 <xpath expr="//t[@id='account.JournalBodySalePurchase']" position="inside">
                     <t t-if="['active'].includes(record.account_peppol_proxy_state.raw_value)">
                         <!-- XXX PEPPOL BACKPORT in v18, account_peppol_proxy_state can distinguish between sender, smp_registration and receiver -->

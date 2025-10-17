@@ -14,6 +14,10 @@
                         attrs="{'invisible': ['|', ('peppol_move_state', '!=', 'to_send'), ('state', '=', 'draft')]}"/>
             </header>
 
+            <xpath expr="//group[@name='sale_info_group']" position="inside">
+                <field name="buyer_reference" />
+                <field name="purchase_order_reference" />
+            </xpath>
             <xpath expr="//div[@name='journal_div']" position="after">
                 <label for="peppol_move_state"
                        attrs="{'invisible': ['|', '|', ('peppol_move_state', '=', False), ('state', '=', 'draft'), ('move_type', 'in', ('in_invoice', 'in_refund'))]}"/>
@@ -25,7 +29,6 @@
                     <span class="mx-1" attrs="{'invisible': [('peppol_is_demo_uuid', '=', False)]}"> (Demo)</span>
                     <span class="text-muted mx-3"
                           attrs="{'invisible': [('peppol_move_state', '!=', 'to_send')]}">
-                        The invoice will be sent automatically to PEPPOL
                     </span>
                 </div>
             </xpath>
@@ -35,33 +38,14 @@
     <record id="account_peppol_view_out_invoice_tree_inherit" model="ir.ui.view">
         <field name="name">account.move.in.invoice.tree.inherit</field>
         <field name="model">account.move</field>
-        <field name="inherit_id" ref="account.view_out_invoice_tree"/>
+        <field name="inherit_id" ref="account.view_out_invoice_tree" />
         <field name="arch" type="xml">
             <field name="state" position="before">
-                <field name="peppol_move_state" optional="hide"/>
-            </field>
-        </field>
-    </record>
-
-    <record id="account_peppol_view_out_credit_note_tree_inherit" model="ir.ui.view">
-        <field name="name">account.move.credit.note.tree.inherit</field>
-        <field name="model">account.move</field>
-        <field name="inherit_id" ref="account.view_out_credit_note_tree"/>
-        <field name="arch" type="xml">
-            <field name="state" position="before">
-                <field name="peppol_move_state" optional="hide"/>
-            </field>
-        </field>
-    </record>
-
-    <!-- to be removed in master -->
-    <record id="account_peppol_view_in_invoice_bill_tree_inherit" model="ir.ui.view">
-        <field name="name">account.out.invoice.tree.inherit</field>
-        <field name="model">account.move</field>
-        <field name="inherit_id" ref="account.view_in_invoice_tree"/>
-        <field name="arch" type="xml">
-            <field name="state" position="before">
-                <field name="peppol_move_state" invisible="1"/>
+                <field
+                    name="peppol_move_state"
+                    optional="hide"
+                    invisible="context.get('default_move_type') not in ('out_invoice', 'out_refund')"
+                />
             </field>
         </field>
     </record>
