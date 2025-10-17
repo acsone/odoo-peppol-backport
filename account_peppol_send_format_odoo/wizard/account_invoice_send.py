@@ -18,15 +18,12 @@ class AccountInvoiceSend(models.TransientModel):
                 _("There were errors while generating the XML: %s") % ",\n".join(errors)
             )
 
-        pdf_invoice = (
-            self.env["ir.actions.report"]
-            .with_context(
-                # For OCA account_invoice_ubl, in case it is installed and
-                # configured the UBL XML in the PDF.
-                no_embedded_ubl_xml=True,
-            )
-            ._render_qweb_pdf("account.account_invoices", [invoice.id])[0]
+        invoice_report = self.env.ref("account.account_invoices").with_context(
+            # For OCA account_invoice_ubl, in case it is installed and
+            # configured the UBL XML in the PDF.
+            no_embedded_ubl_xml=True,
         )
+        pdf_invoice = invoice_report._render_qweb_pdf(res_ids=[invoice.id])[0]
         attachments = [
             PeppolAttachment(
                 filename=f"{invoice._get_report_mail_attachment_filename()}.pdf",

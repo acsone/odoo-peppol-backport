@@ -36,7 +36,7 @@ class AccountEdiProxyClientPeppolUser(models.Model):
     It also owns a key with which each file should be decrypted with (the proxy encrypt all the files with the public key).
     """
     _name = 'account_edi_proxy_client_peppol.user'
-    _description = 'Account EDI proxy user (v17 backport)'
+    _description = 'Account EDI proxy user (v14 backport)'
 
     active = fields.Boolean(default=True)
     id_client = fields.Char(required=True)
@@ -106,7 +106,7 @@ class AccountEdiProxyClientPeppolUser(models.Model):
         return False
 
     def _make_request(self, url, params=False):
-        ''' Make a request to proxy and handle the generic elements of the reponse (errors, new refresh token).
+        '''Make a request to proxy and handle the generic elements of the reponse (errors, new refresh token).
         '''
         payload = {
             'jsonrpc': '2.0',
@@ -126,9 +126,11 @@ class AccountEdiProxyClientPeppolUser(models.Model):
                 timeout=TIMEOUT,
                 headers={'content-type': 'application/json'},
                 auth=OdooEdiProxyAuth(user=self)).json()
-        except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema, requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
+        except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema,
+                requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
             raise AccountEdiProxyError('connection_error',
-                _('The url that this service requested returned an error. The url it tried to contact was %s', url)) from e
+                                       _('The url that this service requested returned an error. The url it tried to contact was %s',
+                                         url)) from e
 
         if 'error' in response:
             message = _('The url that this service requested returned an error. The url it tried to contact was %s. %s', url, response['error']['message'])

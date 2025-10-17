@@ -166,10 +166,11 @@ class AccountEdiProxyClientPeppolUser(models.Model):
                             default_peppol_move_state=content['state'],
                             default_peppol_message_uuid=uuid,
                         )\
-                        ._create_document_from_attachment(attachment.id)
+                        ._create_invoice_from_attachment(attachment.id)
                     move._message_log(body=_('Peppol document has been received successfully'))
                 # pylint: disable=broad-except
-                except Exception:  # noqa: BLE001
+                except Exception as e:  # noqa: BLE001
+                    _logger.exception(e)
                     # if the invoice creation fails for any reason,
                     # we want to create an empty invoice with the attachment
                     move = self.env['account.move'].create({
@@ -197,7 +198,7 @@ class AccountEdiProxyClientPeppolUser(models.Model):
                 )
 
         if need_retrigger:
-            self.env.ref('account_peppol_backport.ir_cron_peppol_get_new_documents')._trigger()
+            self.env.ref('account_peppol_backport.ir_cron_peppol_get_new_documents').method_direct_trigger()
 
     def _peppol_get_message_status(self):
         # Context added to not break stable policy: useful to tweak on databases processing large invoices
@@ -254,7 +255,7 @@ class AccountEdiProxyClientPeppolUser(models.Model):
             )
 
         if need_retrigger:
-            self.env.ref('account_peppol_backport.ir_cron_peppol_get_message_status')._trigger()
+            self.env.ref('account_peppol_backport.ir_cron_peppol_get_message_status').method_direct_trigger()
 
     def _cron_peppol_get_participant_status(self):
         edi_users = self.search([('company_id.account_peppol_proxy_state', 'in', ['pending', 'not_verified', 'sent_verification']), ('proxy_type', '=', 'peppol')])

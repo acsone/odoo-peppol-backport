@@ -273,7 +273,7 @@ class ResConfigSettings(models.TransientModel):
         self.account_peppol_proxy_state = 'pending'
         self.account_peppol_verification_code = False
         # in case they have already been activated on the IAP side
-        self.env.ref('account_peppol_backport.ir_cron_peppol_get_participant_status')._trigger()
+        # self.env.ref('account_peppol_backport.ir_cron_peppol_get_participant_status').method_direct_trigger()
 
     def button_cancel_peppol_registration(self):
         """

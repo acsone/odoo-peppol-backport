@@ -11,7 +11,7 @@
         'security/account_edi_proxy_client_security.xml',
         'views/account_edi_proxy_user_views.xml',
     ],
-    "installable": False,
+    "installable": True,
     'license': 'LGPL-3',
     'author': 'Odoo S.A.,ACSONE SA/NV,Odoo Community Association (OCA)',
     'website': 'https://github.com/acsone/odoo-peppol-backport',
