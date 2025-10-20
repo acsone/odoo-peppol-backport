@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <record model="ir.ui.view" id="account_invoice_send_inherit_account_wizard_form">
+        <field name="model">account.invoice.send</field>
+        <field name="inherit_id" ref="account.account_invoice_send_wizard_form" />
+        <field name="arch" type="xml">
+            <xpath expr="//div[@name='option_peppol']" position="after">
+                <group
+                    attrs="{'invisible': [('peppol_is_show_attachment_visible', '=', False)]}"
+                >
+                    <field name="peppol_is_show_attachment_visible" invisible="1" />
+                    <field name="peppol_existing_attachment_ids_domain" invisible="1" />
+                    <div class="oe_text" colspan="2">
+                        Attach existing attachments
+                    </div>
+                    <field
+                        nolabel="1"
+                        colspan="2"
+                        name="peppol_existing_attachment_ids"
+                        widget="many2many_checkboxes"
+                        domain="peppol_existing_attachment_ids_domain"
+                    />
+                    <div class="oe_text" colspan="2">
+                        Attach new attachments
+                    </div>
+                    <field
+                        nolabel="1"
+                        colspan="2"
+                        name="peppol_new_attachment_ids"
+                        widget="many2many_binary"
+                    />
+                </group>
+            </xpath>
+        </field>
+    </record>
+</odoo>
