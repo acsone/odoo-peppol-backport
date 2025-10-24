@@ -162,6 +162,7 @@ class AccountEdiProxyClientPeppolUser(models.Model):
                     move = journal\
                         .with_company(company)\
                         .with_context(
+                            default_journal_id=journal.id,
                             default_move_type='in_invoice',
                             default_peppol_move_state=content['state'],
                             default_peppol_message_uuid=uuid,
