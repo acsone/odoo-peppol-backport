@@ -1,5 +1,6 @@
 from base64 import b64encode
 from dataclasses import dataclass
+from typing import List, Tuple
 from xml.sax.saxutils import escape, quoteattr
 
 from lxml import etree
@@ -115,7 +116,7 @@ class AccountInvoiceSend(models.TransientModel):
 
     @api.model
     def _peppol_embed_attachments(
-        self, xml_string: bytes, attachments: list[PeppolAttachment]
+        self, xml_string: bytes, attachments: List[PeppolAttachment]
     ) -> str:
         if not attachments:
             return xml_string
@@ -142,7 +143,7 @@ class AccountInvoiceSend(models.TransientModel):
         )
 
     @api.model
-    def _peppol_generate_xml_string_and_filename(self, invoice) -> tuple[bytes, str]:
+    def _peppol_generate_xml_string_and_filename(self, invoice) -> Tuple[bytes, str]:
         raise SystemError(
             "This method should be overridden in the specific format module to generate "
             "the Peppol XML string and filename. Please install the "

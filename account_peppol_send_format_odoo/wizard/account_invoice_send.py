@@ -1,3 +1,5 @@
+from typing import Tuple
+
 from odoo import _, api, models
 from odoo.exceptions import UserError
 
@@ -10,7 +12,7 @@ class AccountInvoiceSend(models.TransientModel):
     _inherit = "account.invoice.send"
 
     @api.model
-    def _peppol_generate_xml_string_and_filename(self, invoice) -> tuple[bytes, str]:
+    def _peppol_generate_xml_string_and_filename(self, invoice) -> Tuple[bytes, str]:
         builder = self.env["account.edi.xml.ubl_bis3"]
         xml_string, errors = builder._export_invoice(invoice)
         if errors:
