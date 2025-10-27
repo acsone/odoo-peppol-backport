@@ -66,7 +66,7 @@ Authors
 Contributors
 ------------
 
-- Stéphane Bidoul stephane.bidoul@acsone.eu
+-  Stéphane Bidoul stephane.bidoul@acsone.eu
 
 Other credits
 -------------
