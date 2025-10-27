@@ -1,6 +1,6 @@
 {
     'name': 'Proxy features for the peppol access point',
-    'version': '16.0.1.0.0',
+    'version': '14.0.1.0.0',
     'category': 'Accounting/Accounting',
     'depends': ['account'],
     'external_dependencies': {
