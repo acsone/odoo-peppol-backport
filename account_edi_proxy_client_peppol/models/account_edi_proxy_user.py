@@ -58,21 +58,25 @@ class AccountEdiProxyClientPeppolUser(models.Model):
 
     _sql_constraints = [
         ('unique_id_client', 'unique(id_client)', 'This id_client is already used on another user.'),
-        ('unique_active_edi_identification', '', 'This edi identification is already assigned to an active user'),
-        ('unique_active_company_proxy', '', 'This company has an active user already created for this EDI type'),
+        ('uniq_active_edi_identif',
+         'unique(edi_identification, proxy_type, edi_mode)',
+         'This edi identification is already assigned to an active user'),
+        ('uniq_active_company_proxy',
+         'unique(company_id, proxy_type, edi_mode)',
+         'This company has an active user already created for this EDI type'),
     ]
 
     def _auto_init(self):
         super()._auto_init()
-        if not index_exists(self.env.cr, 'account_edi_proxy_client_peppol_user_unique_active_edi_identification'):
+        if not index_exists(self.env.cr, 'account_edi_proxy_client_peppol_user_uniq_active_edi_identif'):
             self.env.cr.execute("""
-                CREATE UNIQUE INDEX account_edi_proxy_client_peppol_user_unique_active_edi_identification
+                CREATE UNIQUE INDEX account_edi_proxy_client_peppol_user_uniq_active_edi_identif
                                  ON account_edi_proxy_client_peppol_user(edi_identification, proxy_type, edi_mode)
                               WHERE (active = True)
             """)
-        if not index_exists(self.env.cr, 'account_edi_proxy_client_peppol_user_unique_active_company_proxy'):
+        if not index_exists(self.env.cr, 'account_edi_proxy_client_peppol_user_uniq_active_company_proxy'):
             self.env.cr.execute("""
-                CREATE UNIQUE INDEX account_edi_proxy_client_peppol_user_unique_active_company_proxy
+                CREATE UNIQUE INDEX account_edi_proxy_client_peppol_user_uniq_active_company_proxy
                                  ON account_edi_proxy_client_peppol_user(company_id, proxy_type, edi_mode)
                               WHERE (active = True)
             """)
