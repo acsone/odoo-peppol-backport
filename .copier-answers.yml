@@ -1,7 +1,6 @@
 # Do NOT update manually; changes here will be overwritten by Copier
-_commit: v1.33
+_commit: v1.35
 _src_path: gh:oca/oca-addons-repo-template
-additional_ruff_rules: []
 ci: GitHub
 convert_readme_fragments_to_markdown: true
 enable_checklog_odoo: true
@@ -14,7 +13,7 @@ github_enable_stale_action: true
 github_enforce_dev_status_compatibility: true
 include_wkhtmltopdf: false
 odoo_test_flavor: Both
-odoo_version: 16.0
+odoo_version: 12.0
 org_name: Odoo Community Association (OCA)
 org_slug: OCA
 rebel_module_groups:
@@ -23,6 +22,4 @@ repo_description: Backport of account_peppol from Odoo 17 to previous versions.
 repo_name: Backport of Odoo Peppol support
 repo_slug: odoo-peppol-backport
 repo_website: https://github.com/acsone/odoo-peppol-backport
-use_pyproject_toml: false
-use_ruff: true
 
