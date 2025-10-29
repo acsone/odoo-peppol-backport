@@ -13,7 +13,10 @@
         # attachment in the draft moves created from incoming Peppol invoices.
     ],
     "external_dependencies": {
-        "python": ["phonenumbers"],
+        "python": [
+            "phonenumbers",
+            "stdnum",
+        ],
     },
     'data': [
         'data/cron.xml',

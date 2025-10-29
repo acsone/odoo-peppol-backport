@@ -39,7 +39,7 @@ repos:
     hooks:
       - id: flake8
         name: flake8 excluding __init__.py
-        exclude: __init__\.py
+        exclude: __init__\.py|^(account_peppol_backport/|account_edi_proxy_client_peppol/|account_peppol_partner/)
   - repo: https://github.com/pre-commit/mirrors-pylint
     rev: v2.5.3
     hooks:

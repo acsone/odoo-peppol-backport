@@ -9,6 +9,11 @@
         "account",
         "mail",
     ],
+    "external_dependencies": {
+        "python": [
+            "stdnum",
+        ],
+    },
     "data": ["views/res_partner_views.xml"],
     'installable': False,
 }
