@@ -25,14 +25,14 @@ class TestPeppolMessage(RequestHandlerTransactionCase):
         super().setUpClass()
         cls.env['ir.config_parameter'].sudo().set_param('account_peppol.edi.mode', 'test')
 
-        cls.env.company.write({
+        cls.env.user.company_id.write({
             'country_id': cls.env.ref('base.be').id,
             'peppol_eas': '0208',
             'peppol_endpoint': '0477472701',
             'account_peppol_proxy_state': 'active',
         })
 
-        edi_identification = cls.env['account_edi_proxy_client_peppol.user']._get_proxy_identification(cls.env.company, 'peppol')
+        edi_identification = cls.env['account_edi_proxy_client_peppol.user']._get_proxy_identification(cls.env.user.company_id, 'peppol')
         cls.proxy_user = cls.env['account_edi_proxy_client_peppol.user'].create({
             'id_client': ID_CLIENT,
             'proxy_type': 'peppol',
@@ -62,7 +62,7 @@ class TestPeppolMessage(RequestHandlerTransactionCase):
 
         cls.env['res.partner.bank'].create({
             'acc_number': '0144748555',
-            'partner_id': cls.env.company.partner_id.id,
+            'partner_id': cls.env.user.company_id.partner_id.id,
         })
 
     @classmethod
@@ -159,7 +159,7 @@ class TestPeppolMessage(RequestHandlerTransactionCase):
         with self._set_context({'error': True}):
             self.env['account_edi_proxy_client_peppol.user']._cron_peppol_get_new_documents()
 
-            move = self.env['account.move'].search([('peppol_message_uuid', '=', FAKE_UUID[1])])
+            move = self.env['account.invoice'].search([('peppol_message_uuid', '=', FAKE_UUID[1])])
             self.assertRecordValues(
                 move, [{
                     'peppol_move_state': 'error',
@@ -170,7 +170,7 @@ class TestPeppolMessage(RequestHandlerTransactionCase):
         # a correct move should be created
         self.env['account_edi_proxy_client_peppol.user']._cron_peppol_get_new_documents()
 
-        move = self.env['account.move'].search([('peppol_message_uuid', '=', FAKE_UUID[1])])
+        move = self.env['account.invoice'].search([('peppol_message_uuid', '=', FAKE_UUID[1])])
         self.assertRecordValues(
             move, [{
                 'peppol_move_state': 'done',

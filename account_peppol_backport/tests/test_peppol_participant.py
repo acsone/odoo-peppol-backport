@@ -124,7 +124,7 @@ class TestPeppolParticipant(RequestHandlerTransactionCase):
         # the account_peppol_proxy_state should correctly change to pending
         # then the account_peppol_proxy_state should change success
         # after checking participant status
-        company = self.env.company
+        company = self.env.user.company_id
         settings = self.env['res.config.settings'].create(self._get_participant_vals())
         settings.button_create_peppol_proxy_user()
         self.assertEqual(company.account_peppol_proxy_state, 'not_verified')
@@ -139,7 +139,7 @@ class TestPeppolParticipant(RequestHandlerTransactionCase):
     def test_create_reject_participant(self):
         # the account_peppol_proxy_state should change to rejected
         # if we reject the participant
-        company = self.env.company
+        company = self.env.user.company_id
         settings = self.env['res.config.settings'].create(self._get_participant_vals())
 
         with self._set_context({'reject': True}):
@@ -167,5 +167,5 @@ class TestPeppolParticipant(RequestHandlerTransactionCase):
 
         with self._set_context({'migrate_to': True}):
             settings.button_create_peppol_proxy_user()
-            self.assertEqual(self.env.company.account_peppol_proxy_state, 'not_verified')
+            self.assertEqual(self.env.user.company_id.account_peppol_proxy_state, 'not_verified')
             self.assertFalse(settings.account_peppol_migration_key) # the key should be reset once we've used it

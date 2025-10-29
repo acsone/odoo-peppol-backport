@@ -28,6 +28,7 @@
                                      attrs="{'invisible': [('account_peppol_endpoint_warning', '=', False)]}">
                                     <field name="account_peppol_endpoint_warning"/>
                                 </div>
+                                <field name="country_code" invisible="1" />
                                 <div class="alert alert-warning mt-3"
                                      colspan="2"
                                      role="alert"
@@ -76,7 +77,6 @@
                                     <field name="account_peppol_migration_key"/>
                                 </div>
                             </div>
-                            <div class="row mb-3">
                                 <div class="content-group mt-3"
                                      attrs="{'invisible': [('account_peppol_proxy_state', 'in', ['rejected', 'not_registered', 'canceled', 'not_verified', 'sent_verification'])]}">
                                     <div class="row">
@@ -95,8 +95,8 @@
                                                nolabel="1"
                                                attrs="{'readonly': [('account_peppol_proxy_state', '=', 'sent_verification')]}"/>.
                                     </span>
-                                    <div class="row mt-1 ps-3">
-                                        <field name="account_peppol_verification_code" widget="verification_code"/>
+                                    <div class="row mt-1 pl-3">
+                                        <field name="account_peppol_verification_code" />
                                     </div>
                                 </div>
                                 <div class="pt-3 pb-3"
@@ -151,8 +151,36 @@
                                     </div>
                                 </div>
                                 <div class="d-flex gap-1 action_buttons" colspan="3">
-                                    <widget name="peppol_settings_buttons"
-                                            attrs="{'invisible': [('account_peppol_proxy_state', 'not in', ['not_registered', 'not_verified', 'sent_verification', 'pending', 'manually_approved', 'active'])]}"/>
+                                    <div
+                                        class="mt-3"
+                                        attrs="{'invisible': [('account_peppol_proxy_state', '!=', 'not_registered')]}"
+                                    >
+                                        <button string="Register" type="object" class="btn btn-primary" name="button_create_peppol_proxy_user" />
+                                    </div>
+                                    <div
+                                        class="mt-3"
+                                        attrs="{'invisible': ['|', ('account_peppol_proxy_state', '!=', 'active'), ('account_peppol_migration_key', '!=', False)]}"
+                                    >
+                                        <button string="Deregister from Peppol" type="object" class="btn btn-secondary mr-1" name="button_deregister_peppol_participant" />
+                                    </div>
+                                    <div
+                                        class="mt-3"
+                                        attrs="{'invisible': [('account_peppol_proxy_state', 'not in', ('pending', 'manually_approved', 'active'))]}"
+                                    >
+                                        <button string="Update contact details" type="object" class="btn btn-primary" name="button_update_peppol_user_data" />
+                                    </div>
+                                    <div
+                                        class="mt-3"
+                                        attrs="{'invisible': [('account_peppol_proxy_state', '!=', 'sent_verification')]}"
+                                    >
+                                        <button string="Confirm" type="object" class="btn btn-primary" name="button_check_peppol_verification_code" />
+                                    </div>
+                                    <div
+                                        class="mt-3"
+                                        attrs="{'invisible': [('account_peppol_proxy_state', '!=', 'not_verified')]}"
+                                    >
+                                        <button string="Verify mobile number" type="object" class="btn btn-primary" name="button_send_peppol_verification_code" />
+                                    </div>
                                     <div class="mt-3"
                                          attrs="{'invisible': [('account_peppol_proxy_state', 'in', ['not_registered', 'active', 'rejected', 'canceled'])]}">
                                         <button name="button_cancel_peppol_registration"
@@ -161,7 +189,6 @@
                                                 class="btn btn-secondary"/>
                                     </div>
                                 </div>
-                            </div>
                         </div>
                     </div>
                 </div>

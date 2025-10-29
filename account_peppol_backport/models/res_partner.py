@@ -63,7 +63,7 @@ class ResPartner(models.Model):
     def _get_participant_info(self, edi_identification):
         hash_participant = md5(edi_identification.lower().encode()).hexdigest()
         endpoint_participant = parse.quote_plus(f"iso6523-actorid-upis::{edi_identification}")
-        edi_mode = self.env.company._get_peppol_edi_mode()
+        edi_mode = self.env.user.company_id._get_peppol_edi_mode()
         sml_zone = 'acc.edelivery' if edi_mode == 'test' else 'edelivery'
         smp_url = f"http://B-{hash_participant}.iso6523-actorid-upis.{sml_zone}.tech.ec.europa.eu/{endpoint_participant}"
 
@@ -141,11 +141,12 @@ class ResPartner(models.Model):
     @api.depends('account_peppol_is_endpoint_valid', 'account_peppol_validity_last_check')
     def _compute_account_peppol_verification_label(self):
         for partner in self:
+            participant_info = self._get_participant_info(f'{partner.peppol_eas}:{partner.peppol_endpoint}'.lower())
             if not partner.account_peppol_validity_last_check:
                 partner.account_peppol_verification_label = 'not_verified'
             elif (
                 partner.is_peppol_edi_format
-                and (participant_info := self._get_participant_info(f'{partner.peppol_eas}:{partner.peppol_endpoint}'.lower())) is not None
+                and participant_info is not None
                 and not partner._check_document_type_support(participant_info, partner.ubl_cii_format)
             ):
                 # the partner might exist on the network, but not be able to receive that specific format

@@ -6,7 +6,8 @@ from lxml import etree
 
 from odoo import _, api, fields, models
 from odoo.exceptions import UserError
-from odoo.tools import cleanup_xml_node
+
+from ..tools.xml_utils import cleanup_xml_node
 
 
 @dataclass
@@ -41,7 +42,7 @@ class AccountInvoiceSend(models.TransientModel):
     def default_get(self, fields):
         res = super().default_get(fields)
         res_ids = self._context.get('active_ids')
-        invoices = self.env['account.move'].browse(res_ids)
+        invoices = self.env['account.invoice'].browse(res_ids)
         company = invoices.mapped('company_id')
         if len(company) > 1:
             raise UserError(_("You can only send from the same company."))
@@ -58,21 +59,23 @@ class AccountInvoiceSend(models.TransientModel):
         )
         if invalid_partners:
             names = ", ".join(invalid_partners[:5].mapped("display_name"))
-            peppol_warnings.append(_(
-                "The following partners are not correctly configured to receive Peppol documents. "
-                "Please check and verify their Peppol endpoint and the Electronic Invoicing format: "
-                "%s",
-                names,
-            ))
+            peppol_warnings.append(
+                _(
+                    "The following partners are not correctly configured to receive Peppol documents. "
+                    "Please check and verify their Peppol endpoint and the Electronic Invoicing format: "
+                    "%s"
+                ) % names
+            )
         already_sent_via_peppol = invoices.filtered(
             lambda m: m.peppol_move_state in ("processing", "done")
         )
         if already_sent_via_peppol:
             names = ", ".join(already_sent_via_peppol[:5].mapped("display_name"))
-            peppol_warnings.append(_(
-                "The following invoices have already been sent via Peppol: %s",
-                names,
-            ))
+            peppol_warnings.append(
+                _(
+                    "The following invoices have already been sent via Peppol: %s"
+                ) % names,
+            )
         res["peppol_warning"] = "\n".join(peppol_warnings) if peppol_warnings else False
         res["enable_peppol"] = (
             company.account_peppol_proxy_state == "active"
@@ -114,9 +117,7 @@ class AccountInvoiceSend(models.TransientModel):
             self._peppol_send_invoice(invoice)
 
     @api.model
-    def _peppol_embed_attachments(
-        self, xml_string: bytes, attachments: list[PeppolAttachment]
-    ) -> str:
+    def _peppol_embed_attachments(self, xml_string, attachments):
         if not attachments:
             return xml_string
         tree = etree.fromstring(xml_string)
@@ -142,7 +143,7 @@ class AccountInvoiceSend(models.TransientModel):
         )
 
     @api.model
-    def _peppol_generate_xml_string_and_filename(self, invoice) -> tuple[bytes, str]:
+    def _peppol_generate_xml_string_and_filename(self, invoice):
         raise SystemError(
             "This method should be overridden in the specific format module to generate "
             "the Peppol XML string and filename. Please install the "

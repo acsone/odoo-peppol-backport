@@ -5,7 +5,7 @@
         <field name="model">account.invoice.send</field>
         <field name="inherit_id" ref="account.account_invoice_send_wizard_form" />
         <field name="arch" type="xml">
-            <xpath expr="//div[@role='alert']" position="after">
+            <xpath expr="//div[@name='option_print']" position="before">
                 <div class="alert alert-warning" role="alert"
                     attrs="{'invisible': [('peppol_warning', '=', False)]}">
                     <field name="peppol_warning" />
@@ -25,7 +25,7 @@
                 </div>
             </xpath>
             <xpath expr="//button[@special='cancel']" position="before">
-                <button string="Send via PEPPOl" data-hotkey="q"
+                <button string="Send via PEPPOL" data-hotkey="q"
                     attrs="{'invisible': [('checkbox_send_peppol', '=', False)]}"
                     name="action_send_peppol" type="object" class="send btn-primary o_mail_send" />
             </xpath>

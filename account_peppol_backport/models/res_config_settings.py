@@ -20,6 +20,8 @@ ALLOWED_COUNTRIES = set(EAS_MAPPING.keys()) - {'AU', 'SG', 'NZ'}
 class ResConfigSettings(models.TransientModel):
     _inherit = 'res.config.settings'
 
+    # Technical field to hide country specific fields from accounting configuration
+    country_code = fields.Char(related='company_id.country_id.code', readonly=True)
     is_account_peppol_eligible = fields.Boolean(
         string="PEPPOL eligible",
         compute="_compute_is_account_peppol_eligible",
@@ -100,7 +102,7 @@ class ResConfigSettings(models.TransientModel):
     # -------------------------------------------------------------------------
     # COMPUTE METHODS
     # -------------------------------------------------------------------------
-    @api.depends("country_code")
+    @api.depends("country_code", "company_id.country_id.code")
     def _compute_is_account_peppol_eligible(self):
         # we want to show Peppol settings only to customers that are eligible for Peppol,
         # except countries that are not in Europe
@@ -157,7 +159,7 @@ class ResConfigSettings(models.TransientModel):
 
         if self.account_peppol_proxy_state != 'not_registered':
             raise UserError(
-                _('Cannot register a user with a %s application', self.account_peppol_proxy_state))
+                _('Cannot register a user with a %s application') % self.account_peppol_proxy_state)
 
         if not self.account_peppol_phone_number:
             raise ValidationError(_("Please enter a mobile number to verify your application."))
@@ -169,17 +171,15 @@ class ResConfigSettings(models.TransientModel):
         edi_identification = edi_proxy_client._get_proxy_identification(company, 'peppol')
         company.partner_id._check_peppol_eas()
 
-        if (
-            (participant_info := company.partner_id._check_peppol_participant_exists(edi_identification, check_company=True))
-            and not self.account_peppol_migration_key
-        ):
+        participant_info = company.partner_id._check_peppol_participant_exists(edi_identification, check_company=True)
+        if participant_info and not self.account_peppol_migration_key:
             error_msg = _(
                 "A participant with these details has already been registered on the network. "
                 "If you have previously registered to a Peppol service, please deregister."
             )
 
             if isinstance(participant_info, str):
-                error_msg += _("The Peppol service that is used is likely to be %s.", participant_info)
+                error_msg += _("The Peppol service that is used is likely to be %s.") % participant_info
             raise UserError(error_msg)
 
         edi_user = edi_proxy_client.sudo()._register_proxy_user(company, 'peppol', self.account_peppol_edi_mode)
@@ -240,6 +240,15 @@ class ResConfigSettings(models.TransientModel):
             params=params,
         )
 
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'type': 'success',
+                'message': _("Contact details were updated."),
+            }
+        }
+
     def button_send_peppol_verification_code(self):
         """
         Request user verification via SMS
@@ -273,7 +282,7 @@ class ResConfigSettings(models.TransientModel):
         self.account_peppol_proxy_state = 'pending'
         self.account_peppol_verification_code = False
         # in case they have already been activated on the IAP side
-        self.env.ref('account_peppol_backport.ir_cron_peppol_get_participant_status')._trigger()
+        self.env.ref('account_peppol_backport.ir_cron_peppol_get_participant_status').method_direct_trigger()
 
     def button_cancel_peppol_registration(self):
         """
@@ -296,9 +305,9 @@ class ResConfigSettings(models.TransientModel):
             raise UserError(_("Can't cancel an active registration. Please request a migration or deregister instead."))
 
         if self.account_peppol_proxy_state in {'not_registered', 'rejected', 'canceled'}:
-            raise UserError(_(
-                "Can't cancel registration with this status: %s", self.account_peppol_proxy_state
-            ))
+            raise UserError(
+                _("Can't cancel registration with this status: %s") % self.account_peppol_proxy_state
+            )
 
         self._call_peppol_proxy(endpoint='/api/peppol/1/cancel_peppol_registration')
         self.account_peppol_proxy_state = 'not_registered'
@@ -321,9 +330,9 @@ class ResConfigSettings(models.TransientModel):
         self.ensure_one()
 
         if self.account_peppol_proxy_state != 'active':
-            raise UserError(_(
-                "Can't deregister with this status: %s", self.account_peppol_proxy_state
-            ))
+            raise UserError(
+                _("Can't deregister with this status: %s") % self.account_peppol_proxy_state
+            )
 
         # fetch all documents and message statuses before unlinking the edi user
         # so that the invoices are acknowledged
