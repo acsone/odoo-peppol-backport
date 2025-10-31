@@ -51,9 +51,10 @@ class AccountMove(models.Model):
 
     @api.depends('move_id.state')
     def _compute_peppol_move_state(self):
+        can_send = self.env['account_edi_proxy_client_peppol.user']._get_can_send_domain()
         for move in self:
             if all([
-                move.company_id.account_peppol_proxy_state == 'active',
+                move.company_id.account_peppol_proxy_state in can_send,
                 move.commercial_partner_id.account_peppol_is_endpoint_valid,
                 move.move_id.state == 'posted',
                 move.type in ('out_invoice', 'out_refund', 'out_receipt'),
@@ -78,7 +79,8 @@ class AccountMove(models.Model):
         invoice = render_context['record']
         invoice_country = invoice.commercial_partner_id.country_code
         company_country = invoice.company_id.country_code
-        company_on_peppol = invoice.company_id.account_peppol_proxy_state == 'active'
+        can_send = self.env['account_edi_proxy_client_peppol.user']._get_can_send_domain()
+        company_on_peppol = invoice.company_id.account_peppol_proxy_state in can_send
         if company_on_peppol and company_country in PEPPOL_MAILING_COUNTRIES and invoice_country in PEPPOL_MAILING_COUNTRIES:
             render_context['peppol_info'] = {
                 'peppol_country': invoice_country,

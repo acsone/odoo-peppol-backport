@@ -11,9 +11,12 @@ class AccountInvoice(models.Model):
 
     @api.multi
     def action_invoice_open(self):
+        can_send = self.env[
+            "account_edi_proxy_client_peppol.user"
+        ]._get_can_send_domain()
         for invoice in self:
             if (
-                invoice.company_id.account_peppol_proxy_state != "active"
+                invoice.company_id.account_peppol_proxy_state not in can_send
                 or not invoice.is_sale_document()
                 # this is a dirty hack to avoid blocking invoicing from the
                 # pos. in case of an invalid invoice, it will have to be

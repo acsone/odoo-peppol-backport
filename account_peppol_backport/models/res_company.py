@@ -71,12 +71,10 @@ class ResCompany(models.Model):
     account_peppol_proxy_state = fields.Selection(
         selection=[
             ('not_registered', 'Not registered'),
-            ('not_verified', 'Not verified'),
-            ('sent_verification', 'Verification code sent'),
-            ('pending', 'Pending'),
-            ('active', 'Active'),
+            ('sender', 'Can send but not receive'),
+            ('smp_registration', 'Can send, pending registration to receive'),
+            ('receiver', 'Can send and receive'),
             ('rejected', 'Rejected'),
-            ('canceled', 'Canceled'),
         ],
         string='PEPPOL status', required=True, default='not_registered',
     )
@@ -256,6 +254,44 @@ class ResCompany(models.Model):
     def write(self, vals):
         self._sanitize_peppol_endpoint_in_values(vals)
         return super().write(vals)
+
+    def _peppol_modules_document_types(self):
+        """Override this function to add supported document types as modules are installed.
+
+        :returns: dictionary of the form: {module_name: [(document identifier, document_name)]}
+        """
+        return {
+            'default': {
+                "urn:oasis:names:specification:ubl:schema:xsd:Invoice-2::Invoice##urn:cen.eu:en16931:2017#compliant#urn:fdc:peppol.eu:2017:poacc:billing:3.0::2.1":
+                    "Peppol BIS Billing UBL Invoice V3",
+                "urn:oasis:names:specification:ubl:schema:xsd:CreditNote-2::CreditNote##urn:cen.eu:en16931:2017#compliant#urn:fdc:peppol.eu:2017:poacc:billing:3.0::2.1":
+                    "Peppol BIS Billing UBL CreditNote V3",
+                "urn:oasis:names:specification:ubl:schema:xsd:Invoice-2::Invoice##urn:cen.eu:en16931:2017#compliant#urn:fdc:nen.nl:nlcius:v1.0::2.1":
+                    "SI-UBL 2.0 Invoice",
+                "urn:oasis:names:specification:ubl:schema:xsd:CreditNote-2::CreditNote##urn:cen.eu:en16931:2017#compliant#urn:fdc:nen.nl:nlcius:v1.0::2.1":
+                    "SI-UBL 2.0 CreditNote",
+                "urn:oasis:names:specification:ubl:schema:xsd:Invoice-2::Invoice##urn:cen.eu:en16931:2017#conformant#urn:fdc:peppol.eu:2017:poacc:billing:international:sg:3.0::2.1":
+                    "SG Peppol BIS Billing 3.0 Invoice",
+                "urn:oasis:names:specification:ubl:schema:xsd:CreditNote-2::CreditNote##urn:cen.eu:en16931:2017#conformant#urn:fdc:peppol.eu:2017:poacc:billing:international:sg:3.0::2.1":
+                    "SG Peppol BIS Billing 3.0 Credit Note",
+                "urn:oasis:names:specification:ubl:schema:xsd:Invoice-2::Invoice##urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_3.0::2.1":
+                    "XRechnung UBL Invoice V2.0",
+                "urn:oasis:names:specification:ubl:schema:xsd:CreditNote-2::CreditNote##urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_3.0::2.1":
+                    "XRechnung UBL CreditNote V2.0",
+                "urn:oasis:names:specification:ubl:schema:xsd:Invoice-2::Invoice##urn:cen.eu:en16931:2017#conformant#urn:fdc:peppol.eu:2017:poacc:billing:international:aunz:3.0::2.1":
+                    "AU-NZ Peppol BIS Billing 3.0 Invoice",
+                "urn:oasis:names:specification:ubl:schema:xsd:CreditNote-2::CreditNote##urn:cen.eu:en16931:2017#conformant#urn:fdc:peppol.eu:2017:poacc:billing:international:aunz:3.0::2.1":
+                    "AU-NZ Peppol BIS Billing 3.0 CreditNote",
+            }
+        }
+
+    def _peppol_supported_document_types(self):
+        """Returns a flattened dictionary of all supported document types."""
+        return {
+            identifier: document_name
+            for module, identifiers in self._peppol_modules_document_types().items()
+            for identifier, document_name in identifiers.items()
+        }
 
     def _get_peppol_edi_mode(self):
         self.ensure_one()
