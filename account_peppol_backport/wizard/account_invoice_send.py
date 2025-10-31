@@ -77,8 +77,9 @@ class AccountInvoiceSend(models.TransientModel):
                 ) % names,
             )
         res["peppol_warning"] = "\n".join(peppol_warnings) if peppol_warnings else False
+        can_send = self.env['account_edi_proxy_client_peppol.user']._get_can_send_domain()
         res["enable_peppol"] = (
-            company.account_peppol_proxy_state == "active"
+            company.account_peppol_proxy_state in can_send
             and not peppol_warnings
         )
         if res["enable_peppol"]:

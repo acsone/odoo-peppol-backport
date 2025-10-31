@@ -9,15 +9,16 @@ class AccountJournal(models.Model):
 
     def peppol_get_new_documents(self):
         edi_users = self.env['account_edi_proxy_client_peppol.user'].search([
-            ('company_id.account_peppol_proxy_state', '=', 'active'),
+            ('company_id.account_peppol_proxy_state', '=', 'receiver'),
             ('company_id', 'in', self.company_id.ids),
             ('proxy_type', '=', 'peppol')
         ])
         edi_users._peppol_get_new_documents()
 
     def peppol_get_message_status(self):
+        can_send = self.env['account_edi_proxy_client_peppol.user']._get_can_send_domain()
         edi_users = self.env['account_edi_proxy_client_peppol.user'].search([
-            ('company_id.account_peppol_proxy_state', '=', 'active'),
+            ('company_id.account_peppol_proxy_state', 'in', can_send),
             ('company_id', 'in', self.company_id.ids),
             ('proxy_type', '=', 'peppol')
         ])
