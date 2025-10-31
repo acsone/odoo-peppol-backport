@@ -3,7 +3,7 @@
 import logging
 from base64 import b64encode
 
-from odoo import _, fields, models, modules, tools
+from odoo import _, api, fields, models, modules, tools
 from odoo.exceptions import UserError
 
 from odoo.addons.account_edi_proxy_client_peppol.models.account_edi_proxy_user import (
@@ -64,16 +64,21 @@ class AccountEdiProxyClientPeppolUser(models.Model):
         }
         return urls
 
+    @api.model
+    def _get_can_send_domain(self):
+        return ('sender', 'smp_registration', 'receiver')
+
     # -------------------------------------------------------------------------
     # CRONS
     # -------------------------------------------------------------------------
 
     def _cron_peppol_get_new_documents(self):
-        edi_users = self.search([('company_id.account_peppol_proxy_state', '=', 'active'), ('proxy_type', '=', 'peppol')])
+        edi_users = self.search([('company_id.account_peppol_proxy_state', '=', 'receiver'), ('proxy_type', '=', 'peppol')])
         edi_users._peppol_get_new_documents()
 
     def _cron_peppol_get_message_status(self):
-        edi_users = self.search([('company_id.account_peppol_proxy_state', '=', 'active'), ('proxy_type', '=', 'peppol')])
+        can_send = self.env['account_edi_proxy_client_peppol.user']._get_can_send_domain()
+        edi_users = self.search([('company_id.account_peppol_proxy_state', 'in', can_send), ('proxy_type', '=', 'peppol')])
         edi_users._peppol_get_message_status()
 
     # -------------------------------------------------------------------------
@@ -262,27 +267,46 @@ class AccountEdiProxyClientPeppolUser(models.Model):
             self.env.ref('account_peppol_backport.ir_cron_peppol_get_message_status')._trigger()
 
     def _cron_peppol_get_participant_status(self):
-        edi_users = self.search([('company_id.account_peppol_proxy_state', '!=', 'not_registered'), ('proxy_type', '=', 'peppol')])
+        edi_users = self.search([('proxy_type', '=', 'peppol')])
         edi_users._peppol_get_participant_status()
+
+        # throughout the registration process, we need to check the status more frequently
+        if self.search_count([('company_id.account_peppol_proxy_state', '=', 'smp_registration')], limit=1):
+            self.env.ref('account_peppol_backport.ir_cron_peppol_get_participant_status')._trigger(at=fields.Datetime.now() + timedelta(hours=1))
 
     def _peppol_get_participant_status(self):
         for edi_user in self:
+            edi_user = edi_user.with_company(edi_user.company_id)
+            if edi_user.proxy_type != 'peppol':
+                continue
             try:
-                proxy_user = edi_user._make_request(
-                    f"{edi_user._get_server_url()}/api/peppol/1/participant_status")
+                proxy_user = edi_user._make_request(f"{edi_user._get_server_url()}/api/peppol/2/participant_status")
             except AccountEdiProxyError as e:
-                _logger.error('Error while updating Peppol participant status: %s', e)
+                if e.code == 'client_gone':
+                    # reset the connection if it was archived/deleted on IAP side
+                    edi_user.company_id.account_peppol_proxy_state = "not_registered"
+                    edi_user.sudo().unlink()
+                else:
+                    _logger.error('Error while updating Peppol participant status: %s', e)
                 continue
 
-            state_map = {
-                'active': 'active',
-                'verified': 'pending',
-                'rejected': 'rejected',
-                'canceled': 'canceled',
-            }
+            if 'error' in proxy_user:
+                error_message = proxy_user['error'].get('message') or proxy_user['error'].get('data', {}).get('message')
+                _logger.error('Error while updating Peppol participant status: %s', error_message)
+                continue
 
-            if proxy_user['peppol_state'] in state_map:
-                edi_user.company_id.account_peppol_proxy_state = state_map[proxy_user['peppol_state']]
+            local_state = {
+                'draft': 'not_registered',
+                'sender': 'sender',
+                'smp_registration': 'smp_registration',
+                'receiver': 'receiver',
+                'rejected': 'rejected',
+            }.get(proxy_user.get('peppol_state'))
+
+            if local_state:
+                edi_user.company_id.account_peppol_proxy_state = local_state
+            else:
+                _logger.warning("Received unknown Peppol state '%s' for EDI proxy user id=%s", proxy_user.get('peppol_state'), edi_user.id)
 
     def _peppol_send_document(self, invoice, xml_string: bytes, xml_filename: str):
         """Send one invoice or credit note to the Peppol Access Point.
