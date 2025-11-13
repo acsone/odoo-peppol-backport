@@ -35,17 +35,17 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - container: ghcr.io/oca/oca-ci/py3.6-odoo14.0:latest
+          - container: ghcr.io/oca/oca-ci/py3.8-odoo14.0:latest
             include: "account_peppol_send_queue_job"
             name: test with Odoo
-          - container: ghcr.io/oca/oca-ci/py3.6-ocb14.0:latest
+          - container: ghcr.io/oca/oca-ci/py3.8-ocb14.0:latest
             include: "account_peppol_send_queue_job"
             name: test with OCB
             makepot: "true"
-          - container: ghcr.io/oca/oca-ci/py3.6-odoo14.0:latest
+          - container: ghcr.io/oca/oca-ci/py3.8-odoo14.0:latest
             exclude: "account_peppol_send_queue_job"
             name: test with Odoo
-          - container: ghcr.io/oca/oca-ci/py3.6-ocb14.0:latest
+          - container: ghcr.io/oca/oca-ci/py3.8-ocb14.0:latest
             exclude: "account_peppol_send_queue_job"
             name: test with OCB
             makepot: "true"

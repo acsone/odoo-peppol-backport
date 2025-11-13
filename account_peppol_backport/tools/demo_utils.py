@@ -54,7 +54,7 @@ def _mock_make_request(func, self, *args, **kwargs):
             raise_if_not_found=False,
         )
         if get_messages_cron:
-            get_messages_cron._trigger()
+            get_messages_cron.method_direct_trigger()
         return {
             'messages': [{
                 'message_uuid': 'demo_%s' % uuid.uuid4(),

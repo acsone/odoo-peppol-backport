@@ -21,13 +21,13 @@ Account Peppol Send Format Odoo
     :target: http://www.gnu.org/licenses/lgpl-3.0-standalone.html
     :alt: License: LGPL-3
 .. |badge3| image:: https://img.shields.io/badge/github-OCA%2Fodoo--peppol--backport-lightgray.png?logo=github
-    :target: https://github.com/OCA/odoo-peppol-backport/tree/16.0/account_peppol_send_format_odoo
+    :target: https://github.com/OCA/odoo-peppol-backport/tree/14.0/account_peppol_send_format_odoo
     :alt: OCA/odoo-peppol-backport
 .. |badge4| image:: https://img.shields.io/badge/weblate-Translate%20me-F47D42.png
-    :target: https://translation.odoo-community.org/projects/odoo-peppol-backport-16-0/odoo-peppol-backport-16-0-account_peppol_send_format_odoo
+    :target: https://translation.odoo-community.org/projects/odoo-peppol-backport-14-0/odoo-peppol-backport-14-0-account_peppol_send_format_odoo
     :alt: Translate me on Weblate
 .. |badge5| image:: https://img.shields.io/badge/runboat-Try%20me-875A7B.png
-    :target: https://runboat.odoo-community.org/builds?repo=OCA/odoo-peppol-backport&target_branch=16.0
+    :target: https://runboat.odoo-community.org/builds?repo=OCA/odoo-peppol-backport&target_branch=14.0
     :alt: Try me on Runboat
 
 |badge1| |badge2| |badge3| |badge4| |badge5|
@@ -46,7 +46,7 @@ Bug Tracker
 Bugs are tracked on `GitHub Issues <https://github.com/OCA/odoo-peppol-backport/issues>`_.
 In case of trouble, please check there if your issue has already been reported.
 If you spotted it first, help us to smash it by providing a detailed and welcomed
-`feedback <https://github.com/OCA/odoo-peppol-backport/issues/new?body=module:%20account_peppol_send_format_odoo%0Aversion:%2016.0%0A%0A**Steps%20to%20reproduce**%0A-%20...%0A%0A**Current%20behavior**%0A%0A**Expected%20behavior**>`_.
+`feedback <https://github.com/OCA/odoo-peppol-backport/issues/new?body=module:%20account_peppol_send_format_odoo%0Aversion:%2014.0%0A%0A**Steps%20to%20reproduce**%0A-%20...%0A%0A**Current%20behavior**%0A%0A**Expected%20behavior**>`_.
 
 Do not contact contributors directly about support or help with technical issues.
 
@@ -61,10 +61,10 @@ Authors
 Contributors
 ------------
 
-- Stéphane Bidoul stephane.bidoul@acsone.eu
-- `Coop IT Easy SC <https://coopiteasy.be>`__:
+-  Stéphane Bidoul stephane.bidoul@acsone.eu
+-  `Coop IT Easy SC <https://coopiteasy.be>`__:
 
-  - hugues de keyzer
+   -  hugues de keyzer
 
 Other credits
 -------------
@@ -84,6 +84,6 @@ OCA, or the Odoo Community Association, is a nonprofit organization whose
 mission is to support the collaborative development of Odoo features and
 promote its widespread use.
 
-This module is part of the `OCA/odoo-peppol-backport <https://github.com/OCA/odoo-peppol-backport/tree/16.0/account_peppol_send_format_odoo>`_ project on GitHub.
+This module is part of the `OCA/odoo-peppol-backport <https://github.com/OCA/odoo-peppol-backport/tree/14.0/account_peppol_send_format_odoo>`_ project on GitHub.
 
 You are welcome to contribute. To learn how please visit https://odoo-community.org/page/Contribute.

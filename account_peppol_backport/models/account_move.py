@@ -11,6 +11,8 @@ from odoo.addons.account_peppol_partner.models.eas_mapping import (
 class AccountMove(models.Model):
     _inherit = 'account.move'
 
+    buyer_reference = fields.Char(copy=False)
+    purchase_order_reference = fields.Char(copy=False)
     peppol_message_uuid = fields.Char(string='PEPPOL message ID')
     peppol_move_state = fields.Selection(
         selection=[
@@ -77,3 +79,9 @@ class AccountMove(models.Model):
                 'partner_on_peppol': invoice.commercial_partner_id.account_peppol_is_endpoint_valid,
             }
         return render_context
+
+    def _get_report_mail_attachment_filename(self):
+        self.ensure_one()
+        invoice_name = (self.name or "").replace("/", "_")
+        post_suffix = _("_draft") if self.state == "draft" else ""
+        return _("Invoice_%(name)s%(post)s", name=invoice_name, post=post_suffix)

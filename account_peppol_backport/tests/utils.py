@@ -5,7 +5,7 @@ import requests
 import werkzeug.urls
 from requests import PreparedRequest, Session
 
-from odoo.tests.common import TransactionCase
+from odoo.tests.common import SavepointCase
 
 _logger = logging.getLogger(__name__)
 
@@ -17,7 +17,7 @@ class BlockedRequest(requests.exceptions.ConnectionError):
     pass
 
 
-class RequestHandlerTransactionCase(TransactionCase):
+class RequestHandlerTransactionCase(SavepointCase):
     @classmethod
     def _request_handler(cls, s: Session, r: PreparedRequest, /, **kw):
         # allow localhost requests
