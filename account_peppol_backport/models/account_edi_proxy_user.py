@@ -158,17 +158,21 @@ class AccountEdiProxyClientPeppolUser(models.Model):
                     # At the very minimum, the part that extracts EmbeddedDocumentBinaryObject
                     # should be recreated so users have at least a PDF attachment to
                     # work with.
-                    attachment = self.env['ir.attachment'].create(attachment_vals)
-                    move = journal\
-                        .with_company(company)\
-                        .with_context(
-                            default_journal_id=journal.id,
-                            default_move_type='in_invoice',
-                            default_peppol_move_state=content['state'],
-                            default_peppol_message_uuid=uuid,
-                        )\
-                        ._create_document_from_attachment(attachment.id)
-                    move._message_log(body=_('Peppol document has been received successfully'))
+                    with self.env.cr.savepoint():
+                        # wrap move creation in a savepoint to avoid leaving the cursor
+                        # in an error state when an SQL constraint is raised, without
+                        # this, the explicit commit after the exception fails
+                        attachment = self.env['ir.attachment'].create(attachment_vals)
+                        move = journal\
+                            .with_company(company)\
+                            .with_context(
+                                default_journal_id=journal.id,
+                                default_move_type='in_invoice',
+                                default_peppol_move_state=content['state'],
+                                default_peppol_message_uuid=uuid,
+                            )\
+                            ._create_document_from_attachment(attachment.id)
+                        move._message_log(body=_('Peppol document has been received successfully'))
                 # pylint: disable=broad-except
                 except Exception:  # noqa: BLE001
                     # if the invoice creation fails for any reason,
