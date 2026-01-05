@@ -6,6 +6,7 @@
         <field name="arch" type="xml">
             <xpath expr="//div[@name='option_peppol']" position="after">
                 <group
+                    name="peppol_multiple_attachments"
                     attrs="{'invisible': [('peppol_is_show_attachment_visible', '=', False)]}"
                 >
                     <field name="peppol_is_show_attachment_visible" invisible="1" />
