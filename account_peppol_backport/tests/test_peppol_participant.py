@@ -4,6 +4,7 @@ from contextlib import contextmanager
 from freezegun import freeze_time
 from psycopg2 import IntegrityError
 from requests import PreparedRequest, Response, Session
+from urllib.parse import parse_qs, quote_plus
 
 from odoo.exceptions import UserError, ValidationError
 from odoo.tests.common import tagged
@@ -14,6 +15,9 @@ from .utils import RequestHandlerTransactionCase
 ID_CLIENT = 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'
 FAKE_UUID = 'yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy'
 PDF_FILE_PATH = 'account_peppol/tests/assets/peppol_identification_test.pdf'
+
+# SMP returns 200 for these and 404 otherwise
+SMP_OK_IDS = {'0208:0000000000', '0208:0000000001'}
 
 @freeze_time('2023-01-01')
 @tagged('-at_install', 'post_install')
@@ -53,12 +57,27 @@ class TestPeppolParticipant(RequestHandlerTransactionCase):
     def _request_handler(cls, s: Session, r: PreparedRequest, /, **kw):
         response = Response()
         response.status_code = 200
-        if r.url.endswith('/iso6523-actorid-upis%3A%3A9925%3A0000000000'):
-            response.status_code = 404
-            return response
-
-        if r.url.endswith('/iso6523-actorid-upis%3A%3A0208%3A0000000000'):
-            response._content = b'<?xml version=\'1.0\' encoding=\'UTF-8\'?>\n<smp:ServiceGroup xmlns:wsa="http://www.w3.org/2005/08/addressing" xmlns:id="http://busdox.org/transport/identifiers/1.0/" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:smp="http://busdox.org/serviceMetadata/publishing/1.0/"><id:ParticipantIdentifier scheme="iso6523-actorid-upis">0208:0000000000</id:ParticipantIdentifier></smp:ServiceGroup>'
+        if r.path_url.startswith('/api/peppol/1/lookup'):
+            peppol_identifier = parse_qs(r.path_url.rsplit('?')[1])['peppol_identifier'][0]
+            if peppol_identifier in SMP_OK_IDS:
+                response.json = lambda: {
+                    "result": {
+                        "identifier": peppol_identifier,
+                        "smp_base_url": "http://example.com/smp",
+                        "ttl": 60,
+                        "service_group_url": "http://example.com/smp/iso6523-actorid-upis%3A%3A" + quote_plus(peppol_identifier),
+                        "services": []
+                    }
+                }
+            else:
+                response.status_code = 404
+                response.json = lambda: {
+                    "error": {
+                        "code": "NOT_FOUND",
+                        "message": "no naptr record",
+                        "retryable": False,
+                    },
+                }
             return response
 
         url = r.path_url
