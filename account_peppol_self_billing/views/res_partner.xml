@@ -1,0 +1,17 @@
+<!-- Copyright 2025 ACSONE SA/NV
+     License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl). -->
+<odoo>
+    <record id="view_partner_property_form" model="ir.ui.view">
+        <field name="model">res.partner</field>
+        <field
+            name="inherit_id"
+            ref="account_peppol_partner.view_partner_property_form"
+        />
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='ubl_cii_format']" position="before">
+                <field name="ubl_cii_supported_format" />
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

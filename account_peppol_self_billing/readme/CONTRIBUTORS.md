@@ -1,0 +1,2 @@
+- Nicolas Delbovier <nicolas.delbovier@acsone.eu>
+- Souheil Bejaoui <souheil.bejaoui@acsone.eu>
