@@ -1,0 +1,1 @@
+from . import test_account_peppol_partner_supported_document_type
