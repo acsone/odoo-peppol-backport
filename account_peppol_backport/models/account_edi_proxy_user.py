@@ -1,6 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 
 import logging
+import traceback
 from base64 import b64encode
 
 from odoo import _, fields, models, modules, tools
@@ -188,6 +189,13 @@ class AccountEdiProxyClientPeppolUser(models.Model):
                         'res_id': move.id,
                     })
                     self.env['ir.attachment'].create(attachment_vals)
+                    # Log the exception in the move chatter
+                    move._message_log(
+                        body=_(
+                            "Peppol document received, but invoice creation failed.<br/>"
+                            "<pre>%s</pre>"
+                        ) % traceback.format_exc()
+                    )
                 if 'is_in_extractable_state' in move._fields:
                     move.is_in_extractable_state = False
 
