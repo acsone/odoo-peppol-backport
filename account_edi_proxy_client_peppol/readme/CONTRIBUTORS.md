@@ -1,1 +1,3 @@
 - Stéphane Bidoul <stephane.bidoul@acsone.eu>
+- [Coop IT Easy SC](https://coopiteasy.be):
+  - hugues de keyzer

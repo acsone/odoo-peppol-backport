@@ -27,15 +27,4 @@
             </xpath>
         </field>
     </record>
-
-    <record id="res_partner_view_tree" model="ir.ui.view">
-        <field name="name">res.partner.tree.inherit</field>
-        <field name="model">res.partner</field>
-        <field name="inherit_id" ref="base.view_partner_tree"/>
-        <field name="arch" type="xml">
-            <xpath expr="//field[@name='vat']" position="after">
-                <field name="ubl_cii_format" string="EDI Format" optional="hide"/>
-            </xpath>
-        </field>
-    </record>
 </odoo>

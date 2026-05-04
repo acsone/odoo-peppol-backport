@@ -15,15 +15,15 @@
                     <t t-if="['active'].includes(record.account_peppol_proxy_state.raw_value)">
                         <!-- XXX PEPPOL BACKPORT in v18, account_peppol_proxy_state can distinguish between sender, smp_registration and receiver -->
                         <t t-if="journal_type == 'sale'">
-                            <div class="w-100">
+                            <div class="col-12 o_kanban_primary_left">
                                 <a type="object" name="peppol_get_message_status" groups="account.group_account_invoice">Fetch Peppol invoice status</a>
                             </div>
-                            <div class="w-100">
+                            <div class="col-12 o_kanban_primary_left">
                                 <a type="object" name="action_peppol_ready_moves" groups="account.group_account_invoice">Peppol ready invoices</a>
                             </div>
                         </t>
                         <t t-elif="journal_type == 'purchase' and record.is_peppol_journal.raw_value">
-                            <div class="w-100">
+                            <div class="col-12 o_kanban_primary_left">
                                 <a type="object" name="peppol_get_new_documents" groups="account.group_account_invoice">Fetch from Peppol</a>
                             </div>
                         </t>

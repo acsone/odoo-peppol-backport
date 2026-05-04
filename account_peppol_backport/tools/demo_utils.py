@@ -35,7 +35,7 @@ def get_demo_vendor_bill(user):
 def _mock_make_request(func, self, *args, **kwargs):
 
     def _mock_get_all_documents(user, args, kwargs):
-        if not user.env['account.move'].search_count([
+        if not user.env['account.invoice'].search_count([
             ('peppol_message_uuid', '=', f'{user.company_id.id}_demo_vendor_bill')
         ]):
             return {'messages': [get_demo_vendor_bill(user)]}
@@ -54,7 +54,7 @@ def _mock_make_request(func, self, *args, **kwargs):
             raise_if_not_found=False,
         )
         if get_messages_cron:
-            get_messages_cron._trigger()
+            get_messages_cron.method_direct_trigger()
         return {
             'messages': [{
                 'message_uuid': 'demo_%s' % uuid.uuid4(),
@@ -87,7 +87,7 @@ def _mock_user_creation(func, self, *args, **kwargs):
 
 def _mock_deregister_participant(func, self, *args, **kwargs):
     # Set documents sent in demo to a state where they can be re-sent
-    demo_moves = self.env['account.move'].search([
+    demo_moves = self.env['account.invoice'].search([
         ('company_id', '=', self.company_id.id),
         ('peppol_message_uuid', '=like', 'demo_%'),
     ])
@@ -95,13 +95,14 @@ def _mock_deregister_participant(func, self, *args, **kwargs):
         'peppol_message_uuid': None,
         'peppol_move_state': None,
     })
-    demo_moves.message_main_attachment_id.unlink()
+    demo_moves.mapped("message_main_attachment_id").unlink()
     # demo_moves.ubl_cii_xml_id.unlink() # XXX PEPPOL BACKPORT
     log_message = _('The peppol status of the documents has been reset when switching from Demo to Live.')
-    demo_moves._message_log_batch(bodies=dict((move.id, log_message) for move in demo_moves))
+    for move in demo_moves:
+        move._message_log(log_message)
 
     # also unlink the demo vendor bill
-    self.env['account.move'].search([
+    self.env['account.invoice'].search([
         ('company_id', '=', self.company_id.id),
         ('peppol_message_uuid', '=', f'{self.company_id.id}_demo_vendor_bill'),
     ]).unlink()
@@ -138,7 +139,7 @@ def handle_demo(func, self, *args, **kwargs):
     First handle the decision: "Are we in demo mode?", and conditionally decide which function to
     execute.
     """
-    demo_mode = self.env.company._get_peppol_edi_mode() == 'demo'
+    demo_mode = self.env.user.company_id._get_peppol_edi_mode() == 'demo'
 
     if not demo_mode or tools.config['test_enable'] or modules.module.current_test:
         return func(self, *args, **kwargs)

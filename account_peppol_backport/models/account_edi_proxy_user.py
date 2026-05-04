@@ -20,7 +20,7 @@ class AccountEdiProxyClientPeppolUser(models.Model):
     _inherit = 'account_edi_proxy_client_peppol.user'
 
     peppol_verification_code = fields.Char(string='SMS verification code')
-    proxy_type = fields.Selection(selection_add=[('peppol', 'PEPPOL')], ondelete={'peppol': 'cascade'})
+    proxy_type = fields.Selection(selection_add=[('peppol', 'PEPPOL')])
 
     # -------------------------------------------------------------------------
     # HELPER METHODS
@@ -145,45 +145,35 @@ class AccountEdiProxyClientPeppolUser(models.Model):
                 decoded_document = edi_user._decrypt_data(document_content, enc_key)
                 attachment_vals = {
                     'name': f'{filename}.xml',
-                    'raw': decoded_document,
+                    'datas_fname': f'{filename}.xml',
+                    'datas': b64encode(decoded_document),
                     'type': 'binary',
                     'mimetype': 'application/xml',
                 }
 
+                move = self.env['account.invoice'].create({
+                    'journal_id': journal.id,
+                    'type': 'in_invoice',
+                    'peppol_move_state': 'done',
+                    'company_id': company.id,
+                    'peppol_message_uuid': uuid,
+                })
+                move._message_log(body=_('Peppol document has been received successfully'))
+                attachment_vals.update({
+                    'res_model': 'account.invoice',
+                    'res_id': move.id,
+                })
+                self.env['ir.attachment'].create(attachment_vals)
                 try:
-                    # XXX PEPPOL BACKPORT Note when backporting to 15 and before.
-                    # If _create_document_from_attachment from
-                    # account_edi_ubl_cii is not available, this will create an empty move
-                    # with the XML document as attachment. This is not very useful.
-                    # At the very minimum, the part that extracts EmbeddedDocumentBinaryObject
-                    # should be recreated so users have at least a PDF attachment to
-                    # work with.
-                    attachment = self.env['ir.attachment'].create(attachment_vals)
-                    move = journal\
-                        .with_company(company)\
-                        .with_context(
-                            default_journal_id=journal.id,
-                            default_move_type='in_invoice',
-                            default_peppol_move_state=content['state'],
-                            default_peppol_message_uuid=uuid,
-                        )\
-                        ._create_document_from_attachment(attachment.id)
-                    move._message_log(body=_('Peppol document has been received successfully'))
-                # pylint: disable=broad-except
-                except Exception:  # noqa: BLE001
-                    # if the invoice creation fails for any reason,
-                    # we want to create an empty invoice with the attachment
-                    move = self.env['account.move'].create({
-                        'move_type': 'in_invoice',
-                        'peppol_move_state': 'done',
-                        'company_id': company.id,
-                        'peppol_message_uuid': uuid,
-                    })
-                    attachment_vals.update({
-                        'res_model': 'account.move',
-                        'res_id': move.id,
-                    })
-                    self.env['ir.attachment'].create(attachment_vals)
+                    move._extract_peppol_embedded_files(decoded_document)
+                except Exception as e:
+                    error_message = _(
+                        "Could not extract embedded attachments from the "
+                        "Peppol document: %s"
+                    ) % e
+                    _logger.error(error_message)
+                    move._message_log(body=error_message)
+
                 if 'is_in_extractable_state' in move._fields:
                     move.is_in_extractable_state = False
 
@@ -198,14 +188,14 @@ class AccountEdiProxyClientPeppolUser(models.Model):
                 )
 
         if need_retrigger:
-            self.env.ref('account_peppol_backport.ir_cron_peppol_get_new_documents')._trigger()
+            self.env.ref('account_peppol_backport.ir_cron_peppol_get_new_documents').method_direct_trigger()
 
     def _peppol_get_message_status(self):
         # Context added to not break stable policy: useful to tweak on databases processing large invoices
         job_count = self._context.get('peppol_crons_job_count') or BATCH_SIZE
         need_retrigger = False
         for edi_user in self:
-            edi_user_moves = self.env['account.move'].search(
+            edi_user_moves = self.env['account.invoice'].search(
                 [
                     ('peppol_move_state', '=', 'processing'),
                     ('company_id', '=', edi_user.company_id.id),
@@ -227,7 +217,7 @@ class AccountEdiProxyClientPeppolUser(models.Model):
                     # this rare edge case can happen if the participant is not active on the proxy side
                     # in this case we can't get information about the invoices
                     edi_user_moves.peppol_move_state = 'error'
-                    log_message = _("Peppol error: %s", content['message'])
+                    log_message = _("Peppol error: %s") % content['message']
                     edi_user_moves._message_log_batch(bodies={move.id: log_message for move in edi_user_moves})
                     break
 
@@ -240,11 +230,11 @@ class AccountEdiProxyClientPeppolUser(models.Model):
 
                     move.peppol_move_state = 'error'
                     _logger.warning("%s", content['error'])
-                    move._message_log(body=_("Peppol error: %s", content['error'].get('data', {}).get('message') or content['error']['message']))
+                    move._message_log(body=_("Peppol error: %s") % (content['error'].get('data', {}).get('message') or content['error']['message']))
                     continue
 
                 move.peppol_move_state = content['state']
-                move._message_log(body=_('Peppol status update: %s', content['state']))
+                move._message_log(body=_('Peppol status update: %s') % content['state'])
                 if move.peppol_move_state == 'done':
                     # XXX PEPPOL BACKPORT: this is not in Odoo 17
                     move.is_move_sent = True
@@ -255,7 +245,7 @@ class AccountEdiProxyClientPeppolUser(models.Model):
             )
 
         if need_retrigger:
-            self.env.ref('account_peppol_backport.ir_cron_peppol_get_message_status')._trigger()
+            self.env.ref('account_peppol_backport.ir_cron_peppol_get_message_status').method_direct_trigger()
 
     def _cron_peppol_get_participant_status(self):
         edi_users = self.search([('company_id.account_peppol_proxy_state', 'in', ['pending', 'not_verified', 'sent_verification']), ('proxy_type', '=', 'peppol')])
@@ -280,7 +270,7 @@ class AccountEdiProxyClientPeppolUser(models.Model):
             if proxy_user['peppol_state'] in state_map:
                 edi_user.company_id.account_peppol_proxy_state = state_map[proxy_user['peppol_state']]
 
-    def _peppol_send_document(self, invoice, xml_string: bytes, xml_filename: str):
+    def _peppol_send_document(self, invoice, xml_string, xml_filename):
         """Send one invoice or credit note to the Peppol Access Point.
 
         Log the result of the operation in the invoice chatter. Update the
@@ -303,17 +293,19 @@ class AccountEdiProxyClientPeppolUser(models.Model):
         partner = invoice.partner_id.commercial_partner_id
         if not partner.account_peppol_is_endpoint_valid:
             invoice.peppol_move_state = "error"
-            invoice._message_log(body=_(
-                "Please verify partner %s configuration in partner settings.",
-                partner.display_name,
-            ))
+            invoice._message_log(
+                body=_(
+                    "Please verify partner %s configuration in partner settings."
+                ) % partner.display_name,
+            )
             return
         if not partner.peppol_eas or not partner.peppol_endpoint:
             invoice.peppol_move_state = "error"
-            invoice._message_log(body=_(
-                "The partner %s is missing Peppol EAS and/or Endpoint identifier.",
-                partner.display_name,
-            ))
+            invoice._message_log(
+                body=_(
+                    "The partner %s is missing Peppol EAS and/or Endpoint identifier."
+                ) % partner.display_name,
+            )
             return
 
         receiver_identification = f"{partner.peppol_eas}:{partner.peppol_endpoint}"
@@ -334,15 +326,15 @@ class AccountEdiProxyClientPeppolUser(models.Model):
             )
         except AccountEdiProxyError as e:
             invoice.peppol_move_state = "error"
-            invoice._message_log(body=_("Peppol proxy error: %s", e.message))
+            invoice._message_log(body=_("Peppol proxy error: %s") % e.message)
         else:
             if response.get("error"):
                 # at the moment the only error that can happen here is ParticipantNotReady error
                 invoice.peppol_move_state = "error"
-                invoice._message_log(body=_("Peppol error: %s", response["error"].get("message")))
+                invoice._message_log(body=_("Peppol error: %s") % response["error"].get("message"))
             else:
                 # The response only contains message uuids,
-                # so we have to rely on the order to connect peppol messages to account.move.
+                # so we have to rely on the order to connect peppol messages to account.invoice.
                 # In this case, we have only one invoice and response message.
                 message_uuid = None
                 messages = response.get("messages", [])
@@ -356,11 +348,12 @@ class AccountEdiProxyClientPeppolUser(models.Model):
                         "account_peppol_backport.log_sent_xml"
                     ):
                         sent_xml_attachment = self.env["ir.attachment"].create({
-                            "raw": xml_string,
+                            "datas": b64encode(xml_string),
                             "name": xml_filename,
+                            "datas_fname": xml_filename,
                             "type": "binary",
                             "mimetype": "application/xml",
-                            "res_model": "account.move",
+                            "res_model": "account.invoice",
                             "res_id": invoice.id,
                         })
                     invoice._message_log(body=_(
