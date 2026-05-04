@@ -20,7 +20,13 @@ def _cc_checker(country_code, code_type):
 
 
 def _re_sanitizer(expression):
-    return lambda endpoint: (res.group(0) if (res := re.search(expression, endpoint)) else endpoint)
+    def _re_sanitizer_func(endpoint):
+        res = re.search(expression, endpoint)
+        if res:
+            return res.group(0)
+        return endpoint
+
+    return _re_sanitizer_func
 
 
 PEPPOL_ENDPOINT_RULES = {
@@ -65,12 +71,10 @@ class ResCompany(models.Model):
     account_peppol_proxy_state = fields.Selection(
         selection=[
             ('not_registered', 'Not registered'),
-            ('not_verified', 'Not verified'),
-            ('sent_verification', 'Verification code sent'),
-            ('pending', 'Pending'),
-            ('active', 'Active'),
+            ('sender', 'Can send but not receive'),
+            ('smp_registration', 'Can send, pending registration to receive'),
+            ('receiver', 'Can send and receive'),
             ('rejected', 'Rejected'),
-            ('canceled', 'Canceled'),
         ],
         string='PEPPOL status', required=True, default='not_registered',
     )
@@ -120,7 +124,8 @@ class ResCompany(models.Model):
         self.ensure_one()
         peppol_dict = PEPPOL_ENDPOINT_WARNINGS if warning else PEPPOL_ENDPOINT_RULES
 
-        return True if (endpoint_rule := peppol_dict.get(self.peppol_eas)) is None else endpoint_rule(self.peppol_endpoint)
+        endpoint_rule = peppol_dict.get(self.peppol_eas)
+        return True if endpoint_rule is None else endpoint_rule(self.peppol_endpoint)
 
     # -------------------------------------------------------------------------
     # CONSTRAINTS
@@ -150,17 +155,31 @@ class ResCompany(models.Model):
     # COMPUTE METHODS
     # -------------------------------------------------------------------------
 
+    def _get_stored_computed_field_value_from_db(self, field_name):
+        # this is a helper function to allow to access the value of a stored
+        # computed field from inside its compute function. in odoo 12,
+        # accessing the field directly always returns null.
+        self.ensure_one()
+        self.env.cr.execute(
+            'select "{field_name}" from res_company where id = %(id)s'.format(
+                field_name=field_name
+            ),
+            {"id": self.id},
+        )
+        return self.env.cr.fetchone()[0]
+
     @api.depends('account_peppol_proxy_state')
     def _compute_peppol_purchase_journal_id(self):
         for company in self:
-            if not company.peppol_purchase_journal_id and company.account_peppol_proxy_state not in ('not_registered', 'rejected'):
+            peppol_purchase_journal_id = company._get_stored_computed_field_value_from_db("peppol_purchase_journal_id")
+            if not peppol_purchase_journal_id and company.account_peppol_proxy_state not in ('not_registered', 'rejected'):
                 company.peppol_purchase_journal_id = self.env['account.journal'].search([
                     ('company_id', '=', company.id),
                     ('type', '=', 'purchase'),
                 ], limit=1)
                 company.peppol_purchase_journal_id.is_peppol_journal = True
             else:
-                company.peppol_purchase_journal_id = company.peppol_purchase_journal_id
+                company.peppol_purchase_journal_id = peppol_purchase_journal_id
 
     def _inverse_peppol_purchase_journal_id(self):
         for company in self:
@@ -170,25 +189,31 @@ class ResCompany(models.Model):
                 ('company_id', '=', company.id),
                 ('is_peppol_journal', '=', True),
             ])
-            journals_to_reset.is_peppol_journal = False
-            company.peppol_purchase_journal_id.is_peppol_journal = True
+            journals_to_reset.write({"is_peppol_journal": False})
+            company.peppol_purchase_journal_id.write({"is_peppol_journal": True})
 
     @api.depends('email')
     def _compute_account_peppol_contact_email(self):
         for company in self:
-            if not company.account_peppol_contact_email:
+            account_peppol_contact_email = company._get_stored_computed_field_value_from_db("account_peppol_contact_email")
+            if not account_peppol_contact_email:
                 company.account_peppol_contact_email = company.email
+            else:
+                company.account_peppol_contact_email = account_peppol_contact_email
 
     @api.depends('phone')
     def _compute_account_peppol_phone_number(self):
         for company in self:
-            if not company.account_peppol_phone_number:
+            account_peppol_phone_number = company._get_stored_computed_field_value_from_db("account_peppol_phone_number")
+            if not account_peppol_phone_number:
                 try:
                     # precompute only if it's a valid phone number
                     company._sanitize_peppol_phone_number(company.phone)
                     company.account_peppol_phone_number = company.phone
                 except ValidationError:
                     continue
+            else:
+                company.account_peppol_phone_number = account_peppol_phone_number
 
     # -------------------------------------------------------------------------
     # LOW-LEVEL METHODS
@@ -197,10 +222,13 @@ class ResCompany(models.Model):
     @api.model
     def _sanitize_peppol_endpoint(self, vals, eas=False, endpoint=False):
         # TODO: remove in master
-        if not (peppol_eas := vals.get('peppol_eas', eas)) or not (peppol_endpoint := vals.get('peppol_endpoint', endpoint)):
+        peppol_eas = vals.get('peppol_eas', eas)
+        peppol_endpoint = vals.get('peppol_endpoint', endpoint)
+        if not peppol_eas or not peppol_endpoint:
             return vals
 
-        if sanitizer := PEPPOL_ENDPOINT_SANITIZERS.get(peppol_eas):
+        sanitizer = PEPPOL_ENDPOINT_SANITIZERS.get(peppol_eas)
+        if sanitizer:
             vals['peppol_endpoint'] = sanitizer(peppol_endpoint)
 
         return vals
@@ -211,7 +239,8 @@ class ResCompany(models.Model):
         endpoint = values.get('peppol_endpoint')
         if not eas or not endpoint:
             return
-        if sanitizer := PEPPOL_ENDPOINT_SANITIZERS.get(eas):
+        sanitizer = PEPPOL_ENDPOINT_SANITIZERS.get(eas)
+        if sanitizer:
             new_endpoint = sanitizer(endpoint)
             if new_endpoint:
                 values['peppol_endpoint'] = new_endpoint
@@ -225,6 +254,44 @@ class ResCompany(models.Model):
     def write(self, vals):
         self._sanitize_peppol_endpoint_in_values(vals)
         return super().write(vals)
+
+    def _peppol_modules_document_types(self):
+        """Override this function to add supported document types as modules are installed.
+
+        :returns: dictionary of the form: {module_name: [(document identifier, document_name)]}
+        """
+        return {
+            'default': {
+                "urn:oasis:names:specification:ubl:schema:xsd:Invoice-2::Invoice##urn:cen.eu:en16931:2017#compliant#urn:fdc:peppol.eu:2017:poacc:billing:3.0::2.1":
+                    "Peppol BIS Billing UBL Invoice V3",
+                "urn:oasis:names:specification:ubl:schema:xsd:CreditNote-2::CreditNote##urn:cen.eu:en16931:2017#compliant#urn:fdc:peppol.eu:2017:poacc:billing:3.0::2.1":
+                    "Peppol BIS Billing UBL CreditNote V3",
+                "urn:oasis:names:specification:ubl:schema:xsd:Invoice-2::Invoice##urn:cen.eu:en16931:2017#compliant#urn:fdc:nen.nl:nlcius:v1.0::2.1":
+                    "SI-UBL 2.0 Invoice",
+                "urn:oasis:names:specification:ubl:schema:xsd:CreditNote-2::CreditNote##urn:cen.eu:en16931:2017#compliant#urn:fdc:nen.nl:nlcius:v1.0::2.1":
+                    "SI-UBL 2.0 CreditNote",
+                "urn:oasis:names:specification:ubl:schema:xsd:Invoice-2::Invoice##urn:cen.eu:en16931:2017#conformant#urn:fdc:peppol.eu:2017:poacc:billing:international:sg:3.0::2.1":
+                    "SG Peppol BIS Billing 3.0 Invoice",
+                "urn:oasis:names:specification:ubl:schema:xsd:CreditNote-2::CreditNote##urn:cen.eu:en16931:2017#conformant#urn:fdc:peppol.eu:2017:poacc:billing:international:sg:3.0::2.1":
+                    "SG Peppol BIS Billing 3.0 Credit Note",
+                "urn:oasis:names:specification:ubl:schema:xsd:Invoice-2::Invoice##urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_3.0::2.1":
+                    "XRechnung UBL Invoice V2.0",
+                "urn:oasis:names:specification:ubl:schema:xsd:CreditNote-2::CreditNote##urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_3.0::2.1":
+                    "XRechnung UBL CreditNote V2.0",
+                "urn:oasis:names:specification:ubl:schema:xsd:Invoice-2::Invoice##urn:cen.eu:en16931:2017#conformant#urn:fdc:peppol.eu:2017:poacc:billing:international:aunz:3.0::2.1":
+                    "AU-NZ Peppol BIS Billing 3.0 Invoice",
+                "urn:oasis:names:specification:ubl:schema:xsd:CreditNote-2::CreditNote##urn:cen.eu:en16931:2017#conformant#urn:fdc:peppol.eu:2017:poacc:billing:international:aunz:3.0::2.1":
+                    "AU-NZ Peppol BIS Billing 3.0 CreditNote",
+            }
+        }
+
+    def _peppol_supported_document_types(self):
+        """Returns a flattened dictionary of all supported document types."""
+        return {
+            identifier: document_name
+            for module, identifiers in self._peppol_modules_document_types().items()
+            for identifier, document_name in identifiers.items()
+        }
 
     def _get_peppol_edi_mode(self):
         self.ensure_one()

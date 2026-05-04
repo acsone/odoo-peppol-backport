@@ -5,7 +5,7 @@ from unittest.mock import patch
 from odoo.tests import tagged
 
 from odoo.addons.account.tests.common import AccountTestInvoicingCommon
-from odoo.addons.account_peppol_partner.models.eas_mapping import EAS_MAPPING
+from ..models.eas_mapping import EAS_MAPPING
 
 
 @tagged('post_install', '-at_install')
