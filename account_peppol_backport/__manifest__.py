@@ -4,16 +4,16 @@
     'name': "Peppol",
     'summary': "This module is used to register with the Odoo SA PEPPOL access point",
     'category': 'Accounting/Accounting',
-    'version': '16.0.1.0.0',
+    'version': '12.0.2.0.0',
     'depends': [
         'account_peppol_partner',
         'account_edi_proxy_client_peppol',
-        # account_edi_ubl_cii is not strictly necessary but the part that
-        # extracts EmbeddedDocumentBinaryObject is useful to have at least a PDF
-        # attachment in the draft moves created from incoming Peppol invoices.
     ],
     "external_dependencies": {
-        "python": ["phonenumbers"],
+        "python": [
+            "phonenumbers",
+            "stdnum",
+        ],
     },
     'data': [
         'data/cron.xml',
@@ -27,12 +27,9 @@
         'demo/account_peppol_demo.xml',
     ],
     'license': 'LGPL-3',
-    'assets': {
-        'web.assets_backend': [
-            'account_peppol_backport/static/src/components/**/*',
-        ],
-    },
-    'author': 'Odoo S.A.,ACSONE SA/NV,Odoo Community Association (OCA)',
+    'author': (
+        'Odoo S.A., ACSONE SA/NV, Coop IT Easy SC, '
+        'Odoo Community Association (OCA)'
+    ),
     'website': 'https://github.com/acsone/odoo-peppol-backport',
-    'installable': False,
 }

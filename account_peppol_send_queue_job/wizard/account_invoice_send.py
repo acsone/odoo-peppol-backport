@@ -26,9 +26,9 @@ class AccountInvoiceSend(models.TransientModel):
     @api.model
     def _peppol_send_invoice_job(self, invoice_id):
         invoice = self.env["account.move"].browse(invoice_id)
-        if invoice.state != "posted":
+        if invoice.state != "open":
             _logger.warning(
-                "Invoice %s is not posted, skipping Peppol send job.",
+                "Invoice %s is not open, skipping Peppol send job.",
                 invoice.display_name,
             )
             return

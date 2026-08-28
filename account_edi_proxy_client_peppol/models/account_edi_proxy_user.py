@@ -41,7 +41,7 @@ class AccountEdiProxyClientPeppolUser(models.Model):
     active = fields.Boolean(default=True)
     id_client = fields.Char(required=True)
     company_id = fields.Many2one('res.company', string='Company', required=True,
-        default=lambda self: self.env.company)
+        default=lambda self: self.env.user.company_id)
     edi_identification = fields.Char(required=True, help="The unique id that identifies this user, typically the vat")
     private_key = fields.Binary(required=True, attachment=False, groups="base.group_system", help="The key to encrypt all the user's data")
     private_key_filename = fields.Char(compute='_compute_private_key_filename')
@@ -58,8 +58,6 @@ class AccountEdiProxyClientPeppolUser(models.Model):
 
     _sql_constraints = [
         ('unique_id_client', 'unique(id_client)', 'This id_client is already used on another user.'),
-        ('unique_active_edi_identification', '', 'This edi identification is already assigned to an active user'),
-        ('unique_active_company_proxy', '', 'This company has an active user already created for this EDI type'),
     ]
 
     def _auto_init(self):
@@ -219,7 +217,7 @@ class AccountEdiProxyClientPeppolUser(models.Model):
         This method makes a request to get a new refresh token.
         '''
         try:
-            with self.env.cr.savepoint(flush=False):
+            with self.env.cr.savepoint():
                 self.env.cr.execute('SELECT * FROM account_edi_proxy_client_peppol_user WHERE id IN %s FOR UPDATE NOWAIT', [tuple(self.ids)])
         except OperationalError as e:
             if e.pgcode == '55P03':

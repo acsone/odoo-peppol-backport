@@ -11,6 +11,9 @@ from .eas_mapping import EAS_MAPPING, PEPPOL_DEFAULT_COUNTRIES
 class ResPartner(models.Model):
     _inherit = 'res.partner'
 
+    country_code = fields.Char(related='country_id.code', string="Country Code")
+    company_registry = fields.Char(string="Company ID",
+       help="The registry number of the company. Use it if it is different from the Tax ID. It must be unique across all partners of a same country")
     ubl_cii_format = fields.Selection(
         string="Format",
         selection=[

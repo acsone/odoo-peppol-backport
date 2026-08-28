@@ -21,42 +21,42 @@ Peppol
     :target: http://www.gnu.org/licenses/lgpl-3.0-standalone.html
     :alt: License: LGPL-3
 .. |badge3| image:: https://img.shields.io/badge/github-OCA%2Fodoo--peppol--backport-lightgray.png?logo=github
-    :target: https://github.com/OCA/odoo-peppol-backport/tree/16.0/account_peppol_backport
+    :target: https://github.com/OCA/odoo-peppol-backport/tree/12.0/account_peppol_backport
     :alt: OCA/odoo-peppol-backport
 .. |badge4| image:: https://img.shields.io/badge/weblate-Translate%20me-F47D42.png
-    :target: https://translation.odoo-community.org/projects/odoo-peppol-backport-16-0/odoo-peppol-backport-16-0-account_peppol_backport
+    :target: https://translation.odoo-community.org/projects/odoo-peppol-backport-12-0/odoo-peppol-backport-12-0-account_peppol_backport
     :alt: Translate me on Weblate
 .. |badge5| image:: https://img.shields.io/badge/runboat-Try%20me-875A7B.png
-    :target: https://runboat.odoo-community.org/builds?repo=OCA/odoo-peppol-backport&target_branch=16.0
+    :target: https://runboat.odoo-community.org/builds?repo=OCA/odoo-peppol-backport&target_branch=12.0
     :alt: Try me on Runboat
 
 |badge1| |badge2| |badge3| |badge4| |badge5|
 
 This is a backport of the ``account_peppol`` addon of Odoo 17:
 
--  the registration/unregistration logic and UI;
--  the logic to determine if a partner is registered on the Peppol
-   network and the supported formats;
--  the cron to receive documents and create Vendor Bills;
--  a Send via Peppol option and button in the invoice Send & Print
-   wizard;
--  a method to send a invoice to the access point (the actual sending
-   logic is provided by other modules, see the Installation section);
--  the cron to update the status of Peppol document sent to the network.
+- the registration/unregistration logic and UI;
+- the logic to determine if a partner is registered on the Peppol
+  network and the supported formats;
+- the cron to receive documents and create Vendor Bills;
+- a Send via Peppol option and button in the invoice Send & Print
+  wizard;
+- a method to send a invoice to the access point (the actual sending
+  logic is provided by other modules, see the Installation section);
+- the cron to update the status of Peppol document sent to the network.
 
 There are a few differences from the Odoo 17 module:
 
--  Only the the ``ubl_bis3`` format is supported for now.
--  Sending is done either synchronously or asynchronously via queue job
-   (one job per invoice), where in Odoo 17 sending is done
-   asynchrounously in a cron job with multiple invoices sent in one API
-   call.
--  The flag ``is_move_sent`` is set when the Peppol status of an Invoice
-   is set to ``done`` by the batch that updates the statuses. The
-   upstream module does not handle the ``is_move_sent`` flag.
--  It can log the sent XML file in the chatter when a
-   ``account_peppol_backport.log_sent_xml`` system parameter is set to a
-   non empty value.
+- Only the the ``ubl_bis3`` format is supported for now.
+- Sending is done either synchronously or asynchronously via queue job
+  (one job per invoice), where in Odoo 17 sending is done
+  asynchrounously in a cron job with multiple invoices sent in one API
+  call.
+- The flag ``is_move_sent`` is set when the Peppol status of an Invoice
+  is set to ``done`` by the batch that updates the statuses. The
+  upstream module does not handle the ``is_move_sent`` flag.
+- It can log the sent XML file in the chatter when a
+  ``account_peppol_backport.log_sent_xml`` system parameter is set to a
+  non empty value.
 
 Note that when doing the registration with this module, the company is
 registered as a participant, so a receiver. In v18, it is possible to
@@ -87,7 +87,7 @@ Bug Tracker
 Bugs are tracked on `GitHub Issues <https://github.com/OCA/odoo-peppol-backport/issues>`_.
 In case of trouble, please check there if your issue has already been reported.
 If you spotted it first, help us to smash it by providing a detailed and welcomed
-`feedback <https://github.com/OCA/odoo-peppol-backport/issues/new?body=module:%20account_peppol_backport%0Aversion:%2016.0%0A%0A**Steps%20to%20reproduce**%0A-%20...%0A%0A**Current%20behavior**%0A%0A**Expected%20behavior**>`_.
+`feedback <https://github.com/OCA/odoo-peppol-backport/issues/new?body=module:%20account_peppol_backport%0Aversion:%2012.0%0A%0A**Steps%20to%20reproduce**%0A-%20...%0A%0A**Current%20behavior**%0A%0A**Expected%20behavior**>`_.
 
 Do not contact contributors directly about support or help with technical issues.
 
@@ -99,11 +99,15 @@ Authors
 
 * Odoo S.A.
 * ACSONE SA/NV
+* Coop IT Easy SC
 
 Contributors
 ------------
 
--  Stéphane Bidoul stephane.bidoul@acsone.eu
+- Stéphane Bidoul stephane.bidoul@acsone.eu
+- `Coop IT Easy SC <https://coopiteasy.be>`__:
+
+  - hugues de keyzer
 
 Other credits
 -------------
@@ -123,6 +127,6 @@ OCA, or the Odoo Community Association, is a nonprofit organization whose
 mission is to support the collaborative development of Odoo features and
 promote its widespread use.
 
-This module is part of the `OCA/odoo-peppol-backport <https://github.com/OCA/odoo-peppol-backport/tree/16.0/account_peppol_backport>`_ project on GitHub.
+This module is part of the `OCA/odoo-peppol-backport <https://github.com/OCA/odoo-peppol-backport/tree/12.0/account_peppol_backport>`_ project on GitHub.
 
 You are welcome to contribute. To learn how please visit https://odoo-community.org/page/Contribute.

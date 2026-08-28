@@ -35,7 +35,7 @@ def get_demo_vendor_bill(user):
 def _mock_make_request(func, self, *args, **kwargs):
 
     def _mock_get_all_documents(user, args, kwargs):
-        if not user.env['account.move'].search_count([
+        if not user.env['account.invoice'].search_count([
             ('peppol_message_uuid', '=', f'{user.company_id.id}_demo_vendor_bill')
         ]):
             return {'messages': [get_demo_vendor_bill(user)]}
@@ -54,7 +54,7 @@ def _mock_make_request(func, self, *args, **kwargs):
             raise_if_not_found=False,
         )
         if get_messages_cron:
-            get_messages_cron._trigger()
+            get_messages_cron.method_direct_trigger()
         return {
             'messages': [{
                 'message_uuid': 'demo_%s' % uuid.uuid4(),
@@ -65,9 +65,12 @@ def _mock_make_request(func, self, *args, **kwargs):
     return {
         'ack': lambda _user, _args, _kwargs: {},
         'activate_participant': lambda _user, _args, _kwargs: {},
+        'register_sender': lambda _user, _args, _kwargs: {},
+        'register_receiver': lambda _user, _args, _kwargs: {},
+        'register_sender_as_receiver': lambda _user, _args, _kwargs: {},
         'get_all_documents': _mock_get_all_documents,
         'get_document': _mock_get_document,
-        'participant_status': lambda _user, _args, _kwargs: {'peppol_state': 'active'},
+        'participant_status': lambda _user, _args, _kwargs: {'peppol_state': 'receiver'},
         'send_document': _mock_send_document,
     }[endpoint](self, args, kwargs)
 
@@ -78,16 +81,14 @@ def _mock_button_verify_partner_endpoint(func, self, *args, **kwargs):
 
 def _mock_user_creation(func, self, *args, **kwargs):
     func(self, *args, **kwargs)
-    self.write({
-        'account_peppol_proxy_state': 'active',
-    })
+    self.account_peppol_proxy_state = 'receiver' if self.account_peppol_smp_registration else 'sender'
     self.account_peppol_edi_user.write({
         'private_key': b64encode(file_open(DEMO_PRIVATE_KEY, 'rb').read()),
     })
 
 def _mock_deregister_participant(func, self, *args, **kwargs):
     # Set documents sent in demo to a state where they can be re-sent
-    demo_moves = self.env['account.move'].search([
+    demo_moves = self.env['account.invoice'].search([
         ('company_id', '=', self.company_id.id),
         ('peppol_message_uuid', '=like', 'demo_%'),
     ])
@@ -95,13 +96,14 @@ def _mock_deregister_participant(func, self, *args, **kwargs):
         'peppol_message_uuid': None,
         'peppol_move_state': None,
     })
-    demo_moves.message_main_attachment_id.unlink()
+    demo_moves.mapped("message_main_attachment_id").unlink()
     # demo_moves.ubl_cii_xml_id.unlink() # XXX PEPPOL BACKPORT
     log_message = _('The peppol status of the documents has been reset when switching from Demo to Live.')
-    demo_moves._message_log_batch(bodies=dict((move.id, log_message) for move in demo_moves))
+    for move in demo_moves:
+        move._message_log(log_message)
 
     # also unlink the demo vendor bill
-    self.env['account.move'].search([
+    self.env['account.invoice'].search([
         ('company_id', '=', self.company_id.id),
         ('peppol_message_uuid', '=', f'{self.company_id.id}_demo_vendor_bill'),
     ]).unlink()
@@ -111,6 +113,10 @@ def _mock_deregister_participant(func, self, *args, **kwargs):
     self.account_peppol_proxy_state = 'not_registered'
     self.account_peppol_edi_mode = mode_constraint
 
+def _mock_smp_registration(func, self, *args, **kwargs):
+    func(self, *args, **kwargs)
+    self.account_peppol_proxy_state = 'receiver'
+
 
 def _mock_update_user_data(func, self, *args, **kwargs):
     pass
@@ -118,13 +124,18 @@ def _mock_update_user_data(func, self, *args, **kwargs):
 def _mock_migrate_participant(func, self, *args, **kwargs):
     self.account_peppol_migration_key = 'I9cz9yw*ruDM%4VSj94s'
 
+def _mock_check_company_on_peppol(func, self, *args, **kwargs):
+    pass
+
 _demo_behaviour = {
     '_make_request_peppol': _mock_make_request,
     'button_account_peppol_check_partner_endpoint': _mock_button_verify_partner_endpoint,
     'button_create_peppol_proxy_user': _mock_user_creation,
     'button_deregister_peppol_participant': _mock_deregister_participant,
+    'button_peppol_smp_registration': _mock_smp_registration,
     'button_migrate_peppol_registration': _mock_migrate_participant,
     'button_update_peppol_user_data': _mock_update_user_data,
+    '_check_company_on_peppol': _mock_check_company_on_peppol,
 }
 
 # -------------------------------------------------------------------------
@@ -138,7 +149,7 @@ def handle_demo(func, self, *args, **kwargs):
     First handle the decision: "Are we in demo mode?", and conditionally decide which function to
     execute.
     """
-    demo_mode = self.env.company._get_peppol_edi_mode() == 'demo'
+    demo_mode = self.env.user.company_id._get_peppol_edi_mode() == 'demo'
 
     if not demo_mode or tools.config['test_enable'] or modules.module.current_test:
         return func(self, *args, **kwargs)
