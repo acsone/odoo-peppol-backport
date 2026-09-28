@@ -4,7 +4,7 @@
     'name': "Peppol",
     'summary': "This module is used to register with the Odoo SA PEPPOL access point",
     'category': 'Accounting/Accounting',
-    'version': '16.0.1.0.0',
+    'version': '15.0.1.0.0',
     'depends': [
         'account_peppol_partner',
         'account_edi_proxy_client_peppol',
@@ -14,7 +14,7 @@
     ],
     "external_dependencies": {
         "python": ["phonenumbers"],
-    'installable': False,
+    'installable': True,
 },
     'data': [
         'data/cron.xml',
@@ -32,9 +32,9 @@
         'web.assets_backend': [
             'account_peppol_backport/static/src/components/**/*',
         ],
-    'installable': False,
+    'installable': True,
 },
     'author': 'Odoo S.A.,ACSONE SA/NV,Odoo Community Association (OCA)',
     'website': 'https://github.com/acsone/odoo-peppol-backport',
-    'installable': False,
+    'installable': True,
 }
