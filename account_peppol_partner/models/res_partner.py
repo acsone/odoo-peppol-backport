@@ -134,6 +134,24 @@ class ResPartner(models.Model):
         ]
     )
     hide_peppol_fields = fields.Boolean(compute='_compute_hide_peppol_fields')
+    company_registry = fields.Char(
+        string="Company ID",
+        compute="_compute_company_registry",
+        store=True,
+        readonly=False,
+        help="The registry number of the company. Use it if it is different from the Tax ID. It must be unique across all partners of a same country",
+    )
+
+    @api.depends("vat", "country_id")
+    def _compute_company_registry(self):
+        for partner in self:
+            partner.company_registry = partner.company_registry
+            if partner.country_id.code == "BE" and partner.vat:
+                vat_country, vat_number = self._split_vat(partner.vat)
+                if vat_country == "be" and self.simple_vat_check(
+                    vat_country, vat_number
+                ):
+                    partner.company_registry = vat_number
 
     @api.constrains('peppol_eas')
     def _check_peppol_eas(self):

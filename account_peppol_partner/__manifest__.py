@@ -8,6 +8,7 @@
     "depends": [
         "account",
         "mail",
+        "base_vat",
     ],
     "data": ["views/res_partner_views.xml"],
     'installable': True,

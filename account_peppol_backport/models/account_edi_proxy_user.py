@@ -166,7 +166,7 @@ class AccountEdiProxyClientPeppolUser(models.Model):
                             default_peppol_move_state=content['state'],
                             default_peppol_message_uuid=uuid,
                         )\
-                        ._create_document_from_attachment(attachment.id)
+                        ._create_invoice_from_attachment(attachment.id)
                     move._message_log(body=_('Peppol document has been received successfully'))
                 # pylint: disable=broad-except
                 except Exception:  # noqa: BLE001
