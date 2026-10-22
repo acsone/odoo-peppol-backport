@@ -263,7 +263,7 @@ class ResConfigSettings(models.TransientModel):
         """
         self.ensure_one()
 
-        if len(self.account_peppol_verification_code) != 6:
+        if len(self.account_peppol_verification_code or '') != 6:
             raise ValidationError(_("The verification code should contain six digits."))
 
         self._call_peppol_proxy(
