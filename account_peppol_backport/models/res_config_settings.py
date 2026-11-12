@@ -1,16 +1,18 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 
-from odoo import _, api, fields, models, modules, tools
+from datetime import timedelta
+
+from odoo import SUPERUSER_ID, _, api, fields, models, modules, tools
 from odoo.exceptions import UserError, ValidationError
 
 from odoo.addons.account_edi_proxy_client_peppol.models.account_edi_proxy_user import (
     AccountEdiProxyError,
+    _get_proxy_error_message,
 )
 from odoo.addons.account_peppol_partner.models.eas_mapping import (
     EAS_MAPPING,
     PEPPOL_LIST,
 )
-
 from ..tools.demo_utils import handle_demo
 
 # at the moment, only European countries are accepted
@@ -42,6 +44,7 @@ class ResConfigSettings(models.TransientModel):
     account_peppol_proxy_state = fields.Selection(related='company_id.account_peppol_proxy_state', readonly=False)
     account_peppol_purchase_journal_id = fields.Many2one(related='company_id.peppol_purchase_journal_id', readonly=False)
     account_peppol_verification_code = fields.Char(related='account_peppol_edi_user.peppol_verification_code', readonly=False)
+    account_peppol_sender_only = fields.Boolean(related='company_id.peppol_sender_only', readonly=False)
     is_account_peppol_participant = fields.Boolean(
         string='Use PEPPOL',
         related='company_id.is_account_peppol_participant', readonly=False,
@@ -57,6 +60,11 @@ class ResConfigSettings(models.TransientModel):
         selection=[('demo', 'Demo'), ('test', 'Test'), ('prod', 'Live')],
         compute='_compute_account_peppol_mode_constraint',
         help="Using the config params, this field specifies which edi modes may be selected from the UI"
+    )
+    account_peppol_smp_registration = fields.Boolean(
+        string='Register as a receiver',
+        compute='_compute_smp_registration',
+        help='Reception is enabled when Sender Only Mode is disabled and the endpoint is available.',
     )
 
     # -------------------------------------------------------------------------
@@ -83,9 +91,9 @@ class ResConfigSettings(models.TransientModel):
             raise UserError(e.message) from e
 
         if 'error' in response:
-            error_code = response['error'].get('code')
-            error_message = response['error'].get('message') or response['error'].get('data', {}).get('message')
-            raise UserError(errors.get(error_code) or error_message or _('Connection error, please try again later.'))
+            error = response['error']
+            error_code = error.get('code') if isinstance(error, dict) else None
+            raise UserError(errors.get(error_code) or _get_proxy_error_message(error))
         return response
 
     # -------------------------------------------------------------------------
@@ -146,192 +154,217 @@ class ResConfigSettings(models.TransientModel):
     # BUSINESS ACTIONS
     # -------------------------------------------------------------------------
 
-    @handle_demo
-    def button_create_peppol_proxy_user(self):
-        """
-        The first step of the Peppol onboarding.
-        - Creates an EDI proxy user on the iap side, then the client side
-        - Calls /activate_participant to mark the EDI user as peppol user
-        """
-        self.ensure_one()
-
-        if self.account_peppol_proxy_state != 'not_registered':
-            raise UserError(
-                _('Cannot register a user with a %s application', self.account_peppol_proxy_state))
-
-        if not self.account_peppol_phone_number:
-            raise ValidationError(_("Please enter a mobile number to verify your application."))
-        if not self.account_peppol_contact_email:
-            raise ValidationError(_("Please enter a primary contact email to verify your application."))
-
-        company = self.company_id
-        edi_proxy_client = self.env['account_edi_proxy_client_peppol.user']
-        edi_identification = edi_proxy_client._get_proxy_identification(company, 'peppol')
-        company.partner_id._check_peppol_eas()
-
-        if (
-            (participant_info := company.partner_id._check_peppol_participant_exists(edi_identification, check_company=True))
-            and not self.account_peppol_migration_key
-        ):
-            error_msg = _(
-                "A participant with these details has already been registered on the network. "
-                "If you have previously registered to a Peppol service, please deregister."
+    @api.depends(
+        'account_peppol_eas', 'account_peppol_endpoint',
+        'account_peppol_migration_key', 'account_peppol_sender_only',
+        'account_peppol_edi_mode',
+    )
+    def _compute_smp_registration(self):
+        for config in self:
+            config.account_peppol_smp_registration = False
+            if (
+                config.account_peppol_sender_only
+                or not config.account_peppol_eas
+                or not config.account_peppol_endpoint
+            ):
+                continue
+            identification = '%s:%s' % (
+                config.account_peppol_eas, config.account_peppol_endpoint,
             )
+            try:
+                config._check_company_on_peppol(config.company_id, identification)
+            except UserError:
+                continue
+            config.account_peppol_smp_registration = True
 
+    @handle_demo
+    def _check_company_on_peppol(self, company, edi_identification):
+        if company.account_peppol_migration_key:
+            return
+        participant_info = company.partner_id.with_company(company)._check_peppol_participant_exists(
+            edi_identification, check_company=True,
+        )
+        if participant_info:
+            message = _(
+                "A participant with these details has already been registered on the network. "
+                "You can register as sender only, or provide a migration key to receive documents."
+            )
             if isinstance(participant_info, str):
-                error_msg += _("The Peppol service that is used is likely to be %s.", participant_info)
-            raise UserError(error_msg)
+                message += _(" The Peppol service that is used is likely to be %s.", participant_info)
+            raise UserError(message)
 
-        edi_user = edi_proxy_client.sudo()._register_proxy_user(company, 'peppol', self.account_peppol_edi_mode)
-        self.account_peppol_proxy_state = 'not_verified'
-
-        # if there is an error when activating the participant below,
-        # the client side is rolled back and the edi user is deleted on the client side
-        # but remains on the proxy side.
-        # it is important to keep these two in sync, so commit before activating.
-        if not tools.config['test_enable'] and not modules.module.current_test:
-            self.env.cr.commit()  # pylint: disable=invalid-commit
-
-        company_details = {
+    def _get_company_details(self):
+        self.ensure_one()
+        company = self.company_id
+        return {
             'peppol_company_name': company.display_name,
             'peppol_company_vat': company.vat,
             'peppol_company_street': company.street,
             'peppol_company_city': company.city,
             'peppol_company_zip': company.zip,
             'peppol_country_code': company.country_id.code,
-            'peppol_phone_number': self.account_peppol_phone_number,
-            'peppol_contact_email': self.account_peppol_contact_email,
+            'peppol_phone_number': company.account_peppol_phone_number,
+            'peppol_contact_email': company.account_peppol_contact_email,
+            'peppol_migration_key': company.account_peppol_migration_key,
         }
 
-        params = {
-            'migration_key': self.account_peppol_migration_key,
-            'company_details': company_details,
-        }
-
+    def _peppol_register_sender(self):
+        self.ensure_one()
         self._call_peppol_proxy(
-            endpoint='/api/peppol/1/activate_participant',
-            params=params,
-            edi_user=edi_user,
+            endpoint='/api/peppol/1/register_sender',
+            params={'company_details': self._get_company_details()},
         )
-        # once we sent the migration key over, we don't need it
-        # but we need the field for future in case the user decided to migrate away from Odoo
-        self.account_peppol_migration_key = False
+        self.company_id.account_peppol_proxy_state = 'sender'
+
+    def _peppol_register_sender_as_receiver(self):
+        self.ensure_one()
+        company = self.company_id
+        if company.account_peppol_proxy_state != 'sender':
+            raise UserError(_("Only a registered sender can enable reception."))
+        if company.peppol_sender_only:
+            raise UserError(_("Disable Sender Only Mode before enabling reception."))
+        edi_client = self.env['account_edi_proxy_client_peppol.user']
+        identification = edi_client._get_proxy_identification(company, 'peppol')
+        self._check_company_on_peppol(company, identification)
+        self._call_peppol_proxy(
+            endpoint='/api/peppol/1/register_sender_as_receiver',
+            params={
+                'migration_key': company.account_peppol_migration_key,
+                'supported_identifiers': list(company._peppol_supported_document_types()),
+            },
+        )
+        company.account_peppol_migration_key = False
+        company.account_peppol_proxy_state = 'smp_registration'
+        self.env.ref('account_peppol_backport.ir_cron_peppol_get_participant_status')._trigger(
+            at=fields.Datetime.now() + timedelta(hours=1),
+        )
+
+    def _peppol_deregister_participant(self):
+        self.ensure_one()
+        edi_user = self.account_peppol_edi_user
+        if self.company_id.account_peppol_proxy_state == 'receiver':
+            edi_user._peppol_get_message_status()
+            edi_user._peppol_get_new_documents()
+            if not tools.config['test_enable'] and not modules.module.current_test:
+                self.env.cr.commit()  # pylint: disable=invalid-commit
+        if self.company_id.account_peppol_proxy_state != 'not_registered':
+            self._call_peppol_proxy(endpoint='/api/peppol/1/cancel_peppol_registration')
+        self.company_id.account_peppol_proxy_state = 'not_registered'
+        self.company_id.account_peppol_migration_key = False
+        edi_user.unlink()
+
+    @handle_demo
+    def button_create_peppol_proxy_user(self):
+        """register as sender, then optionally request reception without SMS verification"""
+        self.ensure_one()
+        if self.account_peppol_edi_mode != 'demo':
+            return self.button_register_with_kyc()
+        self = self.with_company(self.company_id)
+        company = self.company_id
+        if company.account_peppol_proxy_state not in ('not_registered', 'sender'):
+            raise UserError(
+                _('Cannot register a user with a %s application', company.account_peppol_proxy_state),
+            )
+        if not self.account_peppol_phone_number:
+            raise ValidationError(_("Please enter a mobile number to verify your application."))
+        if not self.account_peppol_contact_email:
+            raise ValidationError(_("Please enter a primary contact email to verify your application."))
+        company.partner_id._check_peppol_eas()
+        edi_client = self.env['account_edi_proxy_client_peppol.user']
+        edi_user = self.account_peppol_edi_user
+        if not edi_user:
+            edi_client.sudo()._register_proxy_user(company, 'peppol', self.account_peppol_edi_mode)
+            # preserve the proxy credentials if a later remote call fails
+            if not tools.config['test_enable'] and not modules.module.current_test:
+                self.env.cr.commit()  # pylint: disable=invalid-commit
+        if company.account_peppol_proxy_state == 'not_registered':
+            self._peppol_register_sender()
+            # keep the valid sender connection if reception cannot be enabled
+            if not tools.config['test_enable'] and not modules.module.current_test:
+                self.env.cr.commit()  # pylint: disable=invalid-commit
+        if self.account_peppol_smp_registration:
+            self._peppol_register_sender_as_receiver()
+        messages = {
+            'sender': _('You can now send electronic invoices via Peppol.'),
+            'smp_registration': _(
+                'Your Peppol registration will be activated soon. You can already send invoices.'
+            ),
+            'receiver': _('You can now send and receive electronic invoices via Peppol.'),
+        }
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'type': 'success',
+                'message': messages[company.account_peppol_proxy_state],
+            },
+        }
+
+    def button_register_with_kyc(self):
+        """Odoo 17's active registration path, the old create_user route is deprecated"""
+        self.ensure_one()
+        if self.account_peppol_edi_mode == 'demo':
+            return self.button_create_peppol_proxy_user()
+        company = self.company_id.with_company(self.company_id)
+        user = self.env.user
+        if user.id != SUPERUSER_ID and (company not in user.company_ids or not (
+            user.has_group('base.group_system') or user.has_group('account.group_account_manager')
+        )):
+            raise UserError(_('You are not allowed to register this company on Peppol.'))
+        if company.account_peppol_proxy_state not in ('not_registered', 'in_verification'):
+            raise UserError(_('Cannot register a user with a %s application', company.account_peppol_proxy_state))
+        if not self.account_peppol_phone_number or not self.account_peppol_contact_email:
+            raise ValidationError(_('Contact email and mobile number are required.'))
+        company.partner_id._check_peppol_eas()
+        identifier = self.env['account_edi_proxy_client_peppol.user']._get_proxy_identification(company, 'peppol').lower()
+        connection_values = company._peppol_can_connect(identifier)
+        authorization_url = company._peppol_select_kyc_url(connection_values)
+        token = connection_values['_connect_token']
+        if authorization_url:
+            company.account_peppol_proxy_state = 'in_verification'
+            return {'type': 'ir.actions.act_url', 'url': authorization_url, 'target': 'self'}
+        company._peppol_complete_connection(token)
+        return {'type': 'ir.actions.client', 'tag': 'reload'}
+
+    def button_peppol_reset_to_sender(self):
+        self.ensure_one()
+        self.company_id.peppol_sender_only = True
+        self.company_id._peppol_apply_sender_only(self.account_peppol_edi_user)
+        return {'type': 'ir.actions.client', 'tag': 'reload'}
 
     @handle_demo
     def button_update_peppol_user_data(self):
-        """
-        Action for the user to be able to update their contact details any time
-        Calls /update_user on the iap server
-        """
         self.ensure_one()
-
         if not self.account_peppol_contact_email or not self.account_peppol_phone_number:
             raise ValidationError(_("Contact email and mobile number are required."))
-
-        params = {
-            'update_data': {
-                'peppol_phone_number': self.account_peppol_phone_number,
-                'peppol_contact_email': self.account_peppol_contact_email,
-            }
-        }
-
         self._call_peppol_proxy(
             endpoint='/api/peppol/1/update_user',
-            params=params,
+            params={'update_data': {
+                'peppol_phone_number': self.account_peppol_phone_number,
+                'peppol_contact_email': self.account_peppol_contact_email,
+            }},
         )
 
-    def button_send_peppol_verification_code(self):
-        """
-        Request user verification via SMS
-        Calls the /send_verification_code to send the 6-digit verification code
-        """
+    @handle_demo
+    def button_peppol_smp_registration(self):
         self.ensure_one()
-
-        # update contact details in case the user made changes
-        self.button_update_peppol_user_data()
-
-        self._call_peppol_proxy(
-            endpoint='/api/peppol/1/send_verification_code',
-            params={'message': _("Your confirmation code is")},
-        )
-        self.account_peppol_proxy_state = 'sent_verification'
-
-    def button_check_peppol_verification_code(self):
-        """
-        Calls /verify_phone_number to compare user's input and the
-        code generated on the IAP server
-        """
-        self.ensure_one()
-
-        if len(self.account_peppol_verification_code) != 6:
-            raise ValidationError(_("The verification code should contain six digits."))
-
-        self._call_peppol_proxy(
-            endpoint='/api/peppol/1/verify_phone_number',
-            params={'verification_code': self.account_peppol_verification_code},
-        )
-        self.account_peppol_proxy_state = 'pending'
-        self.account_peppol_verification_code = False
-        # in case they have already been activated on the IAP side
-        self.env.ref('account_peppol_backport.ir_cron_peppol_get_participant_status')._trigger()
-
-    def button_cancel_peppol_registration(self):
-        """
-        Sets the peppol registration to canceled
-        - If the user is active on the SMP, we can't just cancel it.
-          They have to request a migration key using the `button_migrate_peppol_registration` action
-          or deregister.
-        - 'not_registered', 'rejected', 'canceled' proxy states mean that canceling the registration
-          makes no sense, so we don't do it
-        - Calls the IAP server first before setting the state as canceled on the client side,
-          in case they've been activated on the IAP side in the meantime
-        """
-        self.ensure_one()
-        # check if the participant has been already registered
-        self.account_peppol_edi_user._peppol_get_participant_status()
-        if not tools.config['test_enable'] and not modules.module.current_test:
-            self.env.cr.commit()  # pylint: disable=invalid-commit
-
-        if self.account_peppol_proxy_state == 'active':
-            raise UserError(_("Can't cancel an active registration. Please request a migration or deregister instead."))
-
-        if self.account_peppol_proxy_state in {'not_registered', 'rejected', 'canceled'}:
-            raise UserError(_(
-                "Can't cancel registration with this status: %s", self.account_peppol_proxy_state
-            ))
-
-        self._call_peppol_proxy(endpoint='/api/peppol/1/cancel_peppol_registration')
-        self.account_peppol_proxy_state = 'not_registered'
-        self.account_peppol_edi_user.unlink()
+        self._peppol_register_sender_as_receiver()
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'type': 'success',
+                'message': _('Your registration to receive Peppol documents is pending.'),
+            },
+        }
 
     @handle_demo
     def button_migrate_peppol_registration(self):
-        """
-        If the user is active, they need to request a migration key, generated on the IAP server.
-        The migration key is then displayed in Peppol settings.
-        Currently, reopening after migrating away is not supported.
-        """
-        raise UserError(_("This feature is deprecated. Contact odoo support if you need a migration key."))
+        raise UserError(_("This feature is deprecated. Contact Odoo support if you need a migration key."))
 
     @handle_demo
     def button_deregister_peppol_participant(self):
-        """
-        Deregister the edi user from Peppol network
-        """
         self.ensure_one()
-
-        if self.account_peppol_proxy_state != 'active':
-            raise UserError(_(
-                "Can't deregister with this status: %s", self.account_peppol_proxy_state
-            ))
-
-        # fetch all documents and message statuses before unlinking the edi user
-        # so that the invoices are acknowledged
-        self.env['account_edi_proxy_client_peppol.user']._cron_peppol_get_message_status()
-        self.env['account_edi_proxy_client_peppol.user']._cron_peppol_get_new_documents()
-        if not tools.config['test_enable'] and not modules.module.current_test:
-            self.env.cr.commit()  # pylint: disable=invalid-commit
-
-        self._call_peppol_proxy(endpoint='/api/peppol/1/cancel_peppol_registration')
-        self.account_peppol_proxy_state = 'not_registered'
-        self.account_peppol_edi_user.unlink()
+        if self.account_peppol_edi_user:
+            self._peppol_deregister_participant()
+        return True

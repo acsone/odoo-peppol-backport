@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <record id="res_config_settings_view_form" model="ir.ui.view">
-        <field name="name">res.config.settings.view.form.inherit.proxy.user</field>
         <field name="model">res.config.settings</field>
         <field name="inherit_id" ref="account.res_config_settings_view_form"/>
         <field name="arch" type="xml">
@@ -9,158 +8,109 @@
                 <field name="is_account_peppol_eligible" invisible="1"/>
                 <h2 attrs="{'invisible': [('is_account_peppol_eligible', '=', False)]}">PEPPOL Electronic Document Invoicing</h2>
                 <div class="row mt16 o_settings_container" attrs="{'invisible': [('is_account_peppol_eligible', '=', False)]}">
-                    <div class="col-12 col-lg-12 o_setting_box" id="peppol">
+                    <div class="col-12 o_setting_box" id="peppol">
                         <div class="o_setting_left_pane"/>
                         <div class="o_setting_right_pane">
                             <field name="account_peppol_proxy_state" invisible="1"/>
+                            <field name="account_peppol_edi_user" invisible="1"/>
+                            <field name="account_peppol_mode_constraint" invisible="1"/>
+                            <field name="account_peppol_smp_registration" invisible="1"/>
                             <div class="mb-2">
-                                <span class="o_form_label">
-                                    Peppol Details
-                                </span>
+                                <span class="o_form_label">Peppol Details</span>
                                 <span class="fa fa-lg fa-building-o" title="Values set here are company-specific."/>
                             </div>
-                            <div attrs="{'invisible': [('account_peppol_proxy_state', '!=', 'not_registered')]}">
-                                <div class="text-muted oe_inline">
-                                    Start sending and receiving documents via Peppol as soon as your registration is complete.
-                                </div>
-                                <div class="alert alert-warning mt-3"
-                                     role="alert"
-                                     attrs="{'invisible': [('account_peppol_endpoint_warning', '=', False)]}">
-                                    <field name="account_peppol_endpoint_warning"/>
-                                </div>
-                                <div class="alert alert-warning mt-3"
-                                     colspan="2"
-                                     role="alert"
-                                     attrs="{'invisible': ['|', ('country_code', '!=', 'BE'), ('account_peppol_eas', 'in', [False, '0208'])]}">
-                                    The recommended EAS code for Belgium is 0208. The Endpoint should be the Company Registry number.
-                                </div>
-                                <div class="pt-3">
-                                    <div class="row">
-                                        <label string="Peppol EAS"
-                                               for="account_peppol_eas"
-                                               class="col-lg-3 o_light_label"/>
-                                        <field name="account_peppol_eas"/>
-                                    </div>
-                                    <div class="row">
-                                        <label string="Peppol Endpoint"
-                                               for="account_peppol_eas"
-                                               class="col-lg-3 o_light_label"/>
-                                        <field name="account_peppol_endpoint"/>
-                                    </div>
-                                </div>
+                            <div class="row">
+                                <label for="account_peppol_edi_mode" class="col-lg-3 o_light_label"/>
+                                <field name="account_peppol_edi_mode" attrs="{'readonly': [('account_peppol_edi_user', '!=', False)]}"/>
                             </div>
-                            <div class="row"
-                                 attrs="{'invisible': [('account_peppol_proxy_state', 'not in', ['not_registered', 'not_verified'])]}">
-                                <label string="Mobile Number"
-                                       for="account_peppol_phone_number"
-                                       class="col-lg-3 o_light_label"/>
-                                <field name="account_peppol_phone_number"
-                                       attrs="{'required': [('account_peppol_proxy_state', '=', 'not_verified')]}"/>
+                            <div class="row">
+                                <label for="account_peppol_eas" class="col-lg-3 o_light_label"/>
+                                <field name="account_peppol_eas" attrs="{'readonly': [('account_peppol_edi_user', '!=', False)]}"/>
                             </div>
-                            <div class="row"
-                                 attrs="{'invisible': [('account_peppol_proxy_state', 'in', ['rejected', 'canceled', 'sent_verification'])]}">
-                                <label string="Primary contact email"
-                                       for="account_peppol_contact_email"
-                                       class="col-lg-3 o_light_label"/>
+                            <div class="row">
+                                <label for="account_peppol_endpoint" class="col-lg-3 o_light_label"/>
+                                <field name="account_peppol_endpoint" attrs="{'readonly': [('account_peppol_edi_user', '!=', False)]}"/>
+                            </div>
+                            <div class="alert alert-warning mt-3" role="alert" attrs="{'invisible': [('account_peppol_endpoint_warning', '=', False)]}">
+                                <field name="account_peppol_endpoint_warning"/>
+                            </div>
+                            <div class="alert alert-warning mt-3" role="alert" attrs="{'invisible': ['|', ('country_code', '!=', 'BE'), ('account_peppol_eas', 'in', [False, '0208'])]}">
+                                The recommended EAS code for Belgium is 0208. The Endpoint should be the Company Registry number.
+                            </div>
+                            <div class="row">
+                                <label for="account_peppol_phone_number" class="col-lg-3 o_light_label"/>
+                                <field name="account_peppol_phone_number"/>
+                            </div>
+                            <div class="row">
+                                <label for="account_peppol_contact_email" class="col-lg-3 o_light_label"/>
                                 <field name="account_peppol_contact_email"/>
                             </div>
-                            <div class="content-group pt-3"
-                                 attrs="{'invisible': [('account_peppol_proxy_state', '!=', 'not_registered')]}">
-                                <span>
-                                    I want to migrate my Peppol connection to Odoo (optional):
-                                </span>
-                                <div class="row mt-3">
-                                    <label string="Migration key"
-                                           for="account_peppol_migration_key"
-                                           class="col-lg-3 o_light_label"/>
+                            <div class="row mt-3" attrs="{'invisible': [('account_peppol_proxy_state', 'not in', ['not_registered', 'sender'])]}">
+                                <label for="account_peppol_sender_only" string="Sender Only Mode" class="col-lg-3 o_light_label"/>
+                                <field name="account_peppol_sender_only"/>
+                            </div>
+                            <div class="text-muted mt-2" attrs="{'invisible': ['|', ('account_peppol_sender_only', '=', False), ('account_peppol_proxy_state', 'not in', ['not_registered', 'sender'])]}">
+                                Only sending will be activated. Disable Sender Only Mode to request reception.
+                            </div>
+                            <div class="content-group mt-3" attrs="{'invisible': ['|', ('account_peppol_proxy_state', 'not in', ['not_registered', 'sender']), ('account_peppol_sender_only', '=', True)]}">
+                                <div class="row">
+                                    <label for="account_peppol_migration_key" string="Migration key (optional)" class="col-lg-3 o_light_label"/>
                                     <field name="account_peppol_migration_key"/>
                                 </div>
+                                <div class="text-muted" attrs="{'invisible': [('account_peppol_smp_registration', '=', True)]}">
+                                    Reception is unavailable for this endpoint. You can send through Odoo while keeping your existing receiving provider, or provide a migration key.
+                                </div>
                             </div>
-                            <div class="row mb-3">
-                                <div class="content-group mt-3"
-                                     attrs="{'invisible': [('account_peppol_proxy_state', 'in', ['rejected', 'not_registered', 'canceled', 'not_verified', 'sent_verification'])]}">
-                                    <div class="row">
-                                        <label string="Incoming Invoices Journal"
-                                               for="account_peppol_purchase_journal_id"
-                                               class="col-lg-3 o_light_label"/>
-                                        <field name="account_peppol_purchase_journal_id"
-                                               attrs="{'required': [('account_peppol_proxy_state', 'not in', ['rejected', 'canceled', 'not_verified', 'not_registered', 'sent_verification'])]}"/>
-                                    </div>
-                                </div>
-                                <div class="content-group mt-3"
-                                     attrs="{'invisible': [('account_peppol_proxy_state', '!=', 'sent_verification')]}">
-                                    <span class="text-muted">
-                                        We sent a verification code to
-                                        <field name="account_peppol_phone_number"
-                                               nolabel="1"
-                                               attrs="{'readonly': [('account_peppol_proxy_state', '=', 'sent_verification')]}"/>.
-                                    </span>
-                                    <div class="row mt-1 ps-3">
-                                        <field name="account_peppol_verification_code" widget="verification_code"/>
-                                    </div>
-                                </div>
-                                <div class="pt-3 pb-3"
-                                     attrs="{'invisible': [('account_peppol_proxy_state', '=', 'not_registered')]}">
-                                    Application status:
-                                    <b>
-                                        <field name="account_peppol_proxy_state"
-                                               class="oe_inline"
-                                               readonly="1"
-                                               decoration-danger="account_peppol_proxy_state == 'rejected'"
-                                               decoration-info="account_peppol_proxy_state == 'active'"/>
-                                        <span class="text-info" attrs="{'invisible': [('account_peppol_edi_mode', '!=', 'demo')]}"> (Demo)</span>
-                                        <span class="text-info" attrs="{'invisible': [('account_peppol_edi_mode', '!=', 'test')]}"> (Test)</span>
-                                    </b>
-                                </div>
-                                <div attrs="{'invisible': [('account_peppol_proxy_state', '!=', 'pending')]}">
-                                    <p>
-                                        Your registration should be activated within a day.
-                                    </p>
-                                </div>
-                                <div attrs="{'invisible': [('account_peppol_proxy_state', '!=', 'rejected')]}">
-                                    <p>
-                                        The rejection reason has been sent to you via email.
-                                    </p>
-                                    <p>
-                                        Please do not hesitate to contact our support if you need further assistance.
-                                    </p>
-                                </div>
-                                <div attrs="{'invisible': ['|', ('account_peppol_proxy_state', '!=', 'active'), ('account_peppol_migration_key', '=', False)]}">
-                                    Your migration key is:
-                                    <field name="account_peppol_migration_key"
-                                           nolabel="1"
-                                           attrs="{'readonly': [('account_peppol_proxy_state', '=', 'active'), ('account_peppol_migration_key', '!=', False)]}"/>
-                                </div>
-                                <div attrs="{'invisible': [('account_peppol_proxy_state', '!=', 'active')]}">
-                                    Your Peppol identification is:
-                                    <field name="account_peppol_edi_identification"
-                                           nolabel="1"/>
-                                </div>
-                                <div class="mt-4" attrs="{'invisible': [('account_peppol_proxy_state', '!=', 'not_registered')]}">
-                                    <field name="account_peppol_mode_constraint" invisible="1"/>
-                                    <field name="account_peppol_edi_mode" invisible="1"/>
-                                    <div class="mb-3" attrs="{'invisible': [('account_peppol_edi_mode', '!=', 'prod')]}">
-                                        By clicking the button below I accept that Odoo may process my e-invoices.
-                                    </div>
-                                    <div class="mb-3" attrs="{'invisible': [('account_peppol_edi_mode', '!=', 'test')]}">
-                                        Test mode allows registration of the user on the test Peppol network.
-                                        By clicking the button below I accept that Odoo may process my e-invoices.
-                                    </div>
-                                    <div class="mb-3" attrs="{'invisible': [('account_peppol_edi_mode', '!=', 'demo')]}">
-                                        In demo mode sending and receiving invoices is simulated. There will be no communication with the Peppol network.
-                                    </div>
-                                </div>
-                                <div class="d-flex gap-1 action_buttons" colspan="3">
-                                    <widget name="peppol_settings_buttons"
-                                            attrs="{'invisible': [('account_peppol_proxy_state', 'not in', ['not_registered', 'not_verified', 'sent_verification', 'pending', 'manually_approved', 'active'])]}"/>
-                                    <div class="mt-3"
-                                         attrs="{'invisible': [('account_peppol_proxy_state', 'in', ['not_registered', 'active', 'rejected', 'canceled'])]}">
-                                        <button name="button_cancel_peppol_registration"
-                                                type="object"
-                                                string="Cancel registration"
-                                                class="btn btn-secondary"/>
-                                    </div>
-                                </div>
+                            <div class="row mt-3" attrs="{'invisible': [('account_peppol_proxy_state', 'not in', ['smp_registration', 'receiver'])]}">
+                                <label for="account_peppol_purchase_journal_id" class="col-lg-3 o_light_label"/>
+                                <field name="account_peppol_purchase_journal_id" attrs="{'required': [('account_peppol_proxy_state', 'in', ['smp_registration', 'receiver'])]}"/>
+                            </div>
+                            <div class="mt-3" attrs="{'invisible': [('account_peppol_proxy_state', '=', 'not_registered')]}">
+                                Application status:
+                                <field name="account_peppol_proxy_state" class="oe_inline" readonly="1"
+                                       decoration-danger="account_peppol_proxy_state == 'rejected'"
+                                       decoration-info="account_peppol_proxy_state in ('sender', 'smp_registration', 'receiver')"/>
+                            </div>
+                            <div class="text-info mt-2" attrs="{'invisible': [('account_peppol_proxy_state', '!=', 'smp_registration')]}">
+                                Your registration should be activated within a day. You can already send invoices.
+                            </div>
+                            <div class="text-danger mt-2" attrs="{'invisible': [('account_peppol_proxy_state', '!=', 'rejected')]}">
+                                The rejection reason has been sent to you via email.
+                            </div>
+                            <div class="mt-3" attrs="{'invisible': [('account_peppol_edi_user', '=', False)]}">
+                                Your Peppol identification is:
+                                <field name="account_peppol_edi_identification" nolabel="1"/>
+                            </div>
+                            <div class="text-muted mt-3" attrs="{'invisible': [('account_peppol_proxy_state', '!=', 'not_registered')]}">
+                                By activating Peppol I accept that Odoo may process my e-invoices.
+                                Odoo may ask you to verify your identity before completing the connection.
+                            </div>
+                            <div class="text-info mt-3" attrs="{'invisible': [('account_peppol_proxy_state', '!=', 'in_verification')]}">
+                                Identity verification is pending. Complete it on the authorization page, or click Activate Peppol to continue.
+                            </div>
+                            <div class="mt-2 text-info" attrs="{'invisible': [('account_peppol_edi_mode', '!=', 'test')]}">
+                                Test mode: registration uses the test Peppol network.
+                            </div>
+                            <div class="mt-2 text-info" attrs="{'invisible': [('account_peppol_edi_mode', '!=', 'demo')]}">
+                                Demo mode: sending and receiving are simulated.
+                            </div>
+                            <div class="mt-3 action_buttons">
+                                <button type="object" name="button_register_with_kyc" string="Activate Peppol"
+                                        class="btn btn-primary"
+                                        attrs="{'invisible': [('account_peppol_proxy_state', 'not in', ['not_registered', 'in_verification'])]}"/>
+                                <button type="object" name="button_peppol_reset_to_sender" string="Use sender only"
+                                        class="btn btn-secondary"
+                                        attrs="{'invisible': ['|', ('account_peppol_sender_only', '=', False), ('account_peppol_proxy_state', 'not in', ['smp_registration', 'receiver'])]}"/>
+                                <button type="object" name="button_peppol_smp_registration" string="Allow reception"
+                                        class="btn btn-primary"
+                                        attrs="{'invisible': ['|', ('account_peppol_proxy_state', '!=', 'sender'), ('account_peppol_sender_only', '=', True)]}"/>
+                                <button type="object" name="button_update_peppol_user_data" string="Update contact details"
+                                        class="btn btn-secondary"
+                                        attrs="{'invisible': [('account_peppol_proxy_state', 'not in', ['sender', 'smp_registration', 'receiver'])]}"/>
+                                <button type="object" name="button_deregister_peppol_participant" string="Remove from Peppol"
+                                        class="btn btn-secondary"
+                                        confirm="This will delete your Peppol registration. Are you sure?"
+                                        attrs="{'invisible': [('account_peppol_proxy_state', 'not in', ['sender', 'smp_registration', 'receiver', 'rejected'])]}"/>
                             </div>
                         </div>
                     </div>

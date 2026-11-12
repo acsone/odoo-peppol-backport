@@ -1,4 +1,5 @@
 import base64
+import json
 import logging
 import uuid
 
@@ -20,12 +21,26 @@ _logger = logging.getLogger(__name__)
 TIMEOUT = 30
 
 
+def _get_proxy_error_message(error):
+    """extract the server message before passing structured errors to the web client"""
+    if isinstance(error, dict):
+        data = error.get('data')
+        if isinstance(data, dict) and data.get('message'):
+            return _get_proxy_error_message(data['message'])
+        if error.get('message'):
+            return _get_proxy_error_message(error['message'])
+        return json.dumps(error, ensure_ascii=False)
+    if isinstance(error, list):
+        return json.dumps(error, ensure_ascii=False)
+    return str(error) if error else _('Connection error, please try again later.')
+
+
 class AccountEdiProxyError(Exception):
 
     def __init__(self, code, message=False):
         self.code = code
-        self.message = message
-        super().__init__(message or code)
+        self.message = _get_proxy_error_message(message or code)
+        super().__init__(self.message)
 
 
 class AccountEdiProxyClientPeppolUser(models.Model):
@@ -58,21 +73,19 @@ class AccountEdiProxyClientPeppolUser(models.Model):
 
     _sql_constraints = [
         ('unique_id_client', 'unique(id_client)', 'This id_client is already used on another user.'),
-        ('unique_active_edi_identification', '', 'This edi identification is already assigned to an active user'),
-        ('unique_active_company_proxy', '', 'This company has an active user already created for this EDI type'),
     ]
 
     def _auto_init(self):
         super()._auto_init()
-        if not index_exists(self.env.cr, 'account_edi_proxy_client_peppol_user_unique_active_edi_identification'):
+        if not index_exists(self.env.cr, 'account_edi_proxy_client_peppol_user_uniq_active_edi_identif'):
             self.env.cr.execute("""
-                CREATE UNIQUE INDEX account_edi_proxy_client_peppol_user_unique_active_edi_identification
+                CREATE UNIQUE INDEX account_edi_proxy_client_peppol_user_uniq_active_edi_identif
                                  ON account_edi_proxy_client_peppol_user(edi_identification, proxy_type, edi_mode)
                               WHERE (active = True)
             """)
-        if not index_exists(self.env.cr, 'account_edi_proxy_client_peppol_user_unique_active_company_proxy'):
+        if not index_exists(self.env.cr, 'account_edi_proxy_client_peppol_user_uniq_active_company_proxy'):
             self.env.cr.execute("""
-                CREATE UNIQUE INDEX account_edi_proxy_client_peppol_user_unique_active_company_proxy
+                CREATE UNIQUE INDEX account_edi_proxy_client_peppol_user_uniq_active_company_proxy
                                  ON account_edi_proxy_client_peppol_user(company_id, proxy_type, edi_mode)
                               WHERE (active = True)
             """)
@@ -131,8 +144,9 @@ class AccountEdiProxyClientPeppolUser(models.Model):
                 _('The url that this service requested returned an error. The url it tried to contact was %s', url)) from e
 
         if 'error' in response:
-            message = _('The url that this service requested returned an error. The url it tried to contact was %s. %s', url, response['error']['message'])
-            if response['error']['code'] == 404:
+            error = response['error']
+            message = _('The url that this service requested returned an error. The url it tried to contact was %s. %s', url, _get_proxy_error_message(error))
+            if isinstance(error, dict) and error.get('code') == 404:
                 message = _('The url that this service tried to contact does not exist. The url was %r', url)
             raise AccountEdiProxyError('connection_error', message)
 
@@ -188,7 +202,7 @@ class AccountEdiProxyClientPeppolUser(models.Model):
             response = {'id_client': f'demo{company.id}{proxy_type}', 'refresh_token': 'demo'}
         else:
             try:
-                # b64encode returns a bytestring, we need it as a string
+                # legacy proxy registrations retain Odoo 17's binary-key encoding
                 response = self._make_request(self._get_server_url(proxy_type, edi_mode) + '/iap/account_edi/2/create_user', params={
                     'dbuuid': company.env['ir.config_parameter'].get_param('database.uuid'),
                     'company_id': company.id,
@@ -199,7 +213,7 @@ class AccountEdiProxyClientPeppolUser(models.Model):
             except AccountEdiProxyError as e:
                 raise UserError(e.message) from e
             if 'error' in response:
-                raise UserError(response['error'])
+                raise UserError(_get_proxy_error_message(response['error']))
 
         return self.create({
             'id_client': response['id_client'],

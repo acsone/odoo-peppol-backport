@@ -1,6 +1,7 @@
 import json
 from base64 import b64encode
 from contextlib import contextmanager
+from urllib.parse import parse_qs, urlparse
 
 from freezegun import freeze_time
 from requests import PreparedRequest, Response, Session
@@ -29,7 +30,7 @@ class TestPeppolMessage(RequestHandlerTransactionCase):
             'country_id': cls.env.ref('base.be').id,
             'peppol_eas': '0208',
             'peppol_endpoint': '0477472701',
-            'account_peppol_proxy_state': 'active',
+            'account_peppol_proxy_state': 'receiver',
         })
 
         edi_identification = cls.env['account_edi_proxy_client_peppol.user']._get_proxy_identification(cls.env.company, 'peppol')
@@ -98,7 +99,7 @@ class TestPeppolMessage(RequestHandlerTransactionCase):
                         'accounting_supplier_party': '0198:dk16356706',
                         'filename': 'test_incoming.xml',
                         'uuid': FAKE_UUID[1],
-                        'state': 'done',
+                        'state': 'done' if not error else 'error',
                         'direction': 'incoming',
                         'document_type': 'Invoice',
                         'sender': '0198:dk16356706',
@@ -122,12 +123,26 @@ class TestPeppolMessage(RequestHandlerTransactionCase):
     def _request_handler(cls, s: Session, r: PreparedRequest, /, **kw):
         response = Response()
         response.status_code = 200
-        if r.url.endswith('iso6523-actorid-upis%3A%3A0208%3A0477472701'):
+        if r.path_url.startswith('/api/peppol/1/lookup?'):
+            identifier = parse_qs(urlparse(r.url).query)['peppol_identifier'][0]
+            if identifier in ('0208:3141592654', '9925:be3141592654'):
+                payload = {'error': {'code': 'NOT_FOUND'}}
+            else:
+                services = []
+                if identifier in ('0208:0477472701', '9925:be0477472701'):
+                    services = [{
+                        'href': 'https://iap-services.odoo.com',
+                        'document_id': 'urn:cen.eu:en16931:2017#compliant#urn:fdc:peppol.eu:2017:poacc:billing:3.0',
+                    }]
+                payload = {'result': {'identifier': identifier, 'services': services}}
+            response._content = json.dumps(payload).encode()
+            return response
+        if r.url.endswith('iso6523-actorid-upis%3A%3A0208%3A0477472701') or r.url.endswith('iso6523-actorid-upis%3A%3A9925%3ABE0477472701'):
             response._content = b"""<?xml version=\'1.0\' encoding=\'UTF-8\'?>\n<smp:ServiceGroup xmlns:wsa="http://www.w3.org/2005/08/addressing" xmlns:id="http://busdox.org/transport/identifiers/1.0/" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:smp="http://busdox.org/serviceMetadata/publishing/1.0/"><id:ParticipantIdentifier scheme="iso6523-actorid-upis">0208:0477472701</id:ParticipantIdentifier>'
             '<smp:ServiceMetadataReferenceCollection><smp:ServiceMetadataReference href="https://iap-services.odoo.com/iso6523-actorid-upis%3A%3A0208%3A0477472701/services/busdox-docid-qns%3A%3Aurn%3Aoasis%3Anames%3Aspecification%3Aubl%3Aschema%3Axsd%3AInvoice-2%3A%3AInvoice%23%23urn%3Acen.eu%3Aen16931%3A2017%23compliant%23urn%3Afdc%3Apeppol.eu%3A2017%3Apoacc%3Abilling%3A3.0%3A%3A2.1"/>'
             '</smp:ServiceMetadataReferenceCollection></smp:ServiceGroup>"""
             return response
-        if r.url.endswith('iso6523-actorid-upis%3A%3A0208%3A3141592654'):
+        if r.url.endswith('iso6523-actorid-upis%3A%3A0208%3A3141592654') or r.url.endswith('iso6523-actorid-upis%3A%3A9925%3ABE3141592654'):
             response.status_code = 404
             return response
         if r.url.endswith('iso6523-actorid-upis%3A%3A0208%3A2718281828'):
