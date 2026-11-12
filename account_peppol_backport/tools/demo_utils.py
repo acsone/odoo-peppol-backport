@@ -42,10 +42,14 @@ def _mock_make_request(func, self, *args, **kwargs):
         return {'messages': []}
 
     def _mock_get_document(user, args, kwargs):
-        message_uuid = args[1]['message_uuids'][0]
-        if message_uuid.endswith('_demo_vendor_bill'):
-            return {message_uuid: get_demo_vendor_bill(user)}
-        return {message_uuid: {'state': 'done'}}
+        return {
+            message_uuid: (
+                get_demo_vendor_bill(user)
+                if message_uuid.endswith('_demo_vendor_bill')
+                else {'state': 'done'}
+            )
+            for message_uuid in args[1]['message_uuids']
+        }
 
     def _mock_send_document(user, args, kwargs):
         # Trigger the reception of vendor bills
@@ -65,9 +69,12 @@ def _mock_make_request(func, self, *args, **kwargs):
     return {
         'ack': lambda _user, _args, _kwargs: {},
         'activate_participant': lambda _user, _args, _kwargs: {},
+        'register_sender': lambda _user, _args, _kwargs: {},
+        'register_receiver': lambda _user, _args, _kwargs: {},
+        'register_sender_as_receiver': lambda _user, _args, _kwargs: {},
         'get_all_documents': _mock_get_all_documents,
         'get_document': _mock_get_document,
-        'participant_status': lambda _user, _args, _kwargs: {'peppol_state': 'active'},
+        'participant_status': lambda _user, _args, _kwargs: {'peppol_state': 'receiver'},
         'send_document': _mock_send_document,
     }[endpoint](self, args, kwargs)
 
@@ -77,13 +84,12 @@ def _mock_button_verify_partner_endpoint(func, self, *args, **kwargs):
     self.account_peppol_is_endpoint_valid = True
 
 def _mock_user_creation(func, self, *args, **kwargs):
-    func(self, *args, **kwargs)
-    self.write({
-        'account_peppol_proxy_state': 'active',
-    })
+    action = func(self, *args, **kwargs)
+    self.account_peppol_proxy_state = 'receiver' if self.account_peppol_smp_registration else 'sender'
     self.account_peppol_edi_user.write({
         'private_key': b64encode(file_open(DEMO_PRIVATE_KEY, 'rb').read()),
     })
+    return action
 
 def _mock_deregister_participant(func, self, *args, **kwargs):
     # Set documents sent in demo to a state where they can be re-sent
@@ -111,6 +117,11 @@ def _mock_deregister_participant(func, self, *args, **kwargs):
     self.account_peppol_proxy_state = 'not_registered'
     self.account_peppol_edi_mode = mode_constraint
 
+def _mock_smp_registration(func, self, *args, **kwargs):
+    action = func(self, *args, **kwargs)
+    self.account_peppol_proxy_state = 'receiver'
+    return action
+
 
 def _mock_update_user_data(func, self, *args, **kwargs):
     pass
@@ -118,13 +129,18 @@ def _mock_update_user_data(func, self, *args, **kwargs):
 def _mock_migrate_participant(func, self, *args, **kwargs):
     self.account_peppol_migration_key = 'I9cz9yw*ruDM%4VSj94s'
 
+def _mock_check_company_on_peppol(func, self, *args, **kwargs):
+    pass
+
 _demo_behaviour = {
     '_make_request_peppol': _mock_make_request,
     'button_account_peppol_check_partner_endpoint': _mock_button_verify_partner_endpoint,
     'button_create_peppol_proxy_user': _mock_user_creation,
     'button_deregister_peppol_participant': _mock_deregister_participant,
+    'button_peppol_smp_registration': _mock_smp_registration,
     'button_migrate_peppol_registration': _mock_migrate_participant,
     'button_update_peppol_user_data': _mock_update_user_data,
+    '_check_company_on_peppol': _mock_check_company_on_peppol,
 }
 
 # -------------------------------------------------------------------------
@@ -138,7 +154,8 @@ def handle_demo(func, self, *args, **kwargs):
     First handle the decision: "Are we in demo mode?", and conditionally decide which function to
     execute.
     """
-    demo_mode = self.env.company._get_peppol_edi_mode() == 'demo'
+    company = self.company_id if self._name == 'res.config.settings' else self.env.company
+    demo_mode = company._get_peppol_edi_mode() == 'demo'
 
     if not demo_mode or tools.config['test_enable'] or modules.module.current_test:
         return func(self, *args, **kwargs)

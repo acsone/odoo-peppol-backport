@@ -4,7 +4,7 @@
     'name': "Peppol",
     'summary': "This module is used to register with the Odoo SA PEPPOL access point",
     'category': 'Accounting/Accounting',
-    'version': '15.0.1.0.1',
+    'version': '15.0.2.1.0',
     'depends': [
         'account_peppol_partner',
         'account_edi_proxy_client_peppol',

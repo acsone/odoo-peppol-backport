@@ -8,9 +8,9 @@ odoo.define('account_peppol_backport.settings', function (require) {
     const FormController = require('web.FormController');
     const peppolInputButtons = new Set([
         'button_create_peppol_proxy_user',
+        'button_register_with_kyc',
         'button_update_peppol_user_data',
-        'button_send_peppol_verification_code',
-        'button_check_peppol_verification_code',
+        'button_peppol_smp_registration',
     ]);
 
     BaseSettingsController.include({

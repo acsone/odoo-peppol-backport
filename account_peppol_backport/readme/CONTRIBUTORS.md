@@ -1,1 +1,2 @@
 - Stéphane Bidoul <stephane.bidoul@acsone.eu>
+- Souheil Bejaoui <souheil.bejaoui@acsone.eu>
